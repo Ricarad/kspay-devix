@@ -26,3 +26,13 @@ devix change status
 ```
 
 通用规则见 `AGENTS.md`，编码规范见 `standards/`，长期知识见 `knowledge/`。
+
+## 更新平台规则
+
+平台规则由发布源统一维护。需要同步最新的根协作规则和通用 standards 时，在本目录执行：
+
+```bash
+devix update
+```
+
+该命令不会修改个人 changes、knowledge、仓库登记、业务代码或 Git 状态，也不会自动 commit/push。

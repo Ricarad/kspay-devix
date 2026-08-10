@@ -28,7 +28,7 @@ npm exec --yes \
 
 ### 全局安装
 
-从 Git 地址直接安装：
+需要长期使用 `devix update`、change 和 repo 命令时，从 Git 地址全局安装一次：
 
 ```bash
 npm install -g 'git+ssh://git@github.com/Ricarad/kspay-devix.git#main'
@@ -43,6 +43,23 @@ npm install -g ~/.local/share/kspay-devix
 ```
 
 要求 Node.js 18 或以上。CLI 的安装位置与日常工作空间相互独立。
+
+### 更新消费者规则
+
+发布者只在 `kspay-devix` 源仓库修改并推送平台规则。使用者在自己的 Devix 工作空间根目录执行：
+
+```bash
+devix update
+```
+
+命令每次从 GitHub `main` 获取最新发布版本，只同步平台托管的 `AGENTS.md` 和 `standards/`。它不修改 `changes/`、`knowledge/`、`repositories.yaml`、`repos/`、`.devix/runtime/` 或 Git 远端，也不会 stage、commit、push。
+
+临时验证其他发布分支或源地址时可以显式指定：
+
+```bash
+devix update --branch main
+devix update --source git@github.com:Ricarad/kspay-devix.git --branch main
+```
 
 ## 2. 创建最小工作空间
 

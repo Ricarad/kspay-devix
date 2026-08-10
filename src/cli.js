@@ -11,6 +11,7 @@ const { findWorkspace, loadRuntimeState } = require("./files");
 const { DevixError } = require("./errors");
 const { initializeWorkspace } = require("./workspace-service");
 const { addRepository, listRepositories } = require("./repository-service");
+const { updateWorkspace } = require("./update-service");
 
 function parseArguments(args) {
   const positional = [];
@@ -44,6 +45,7 @@ function print(value) {
 function usage() {
   return `用法：
   devix init|install <workspace-directory> [--branch main] [--no-git]
+  devix update [--source <devix-git-url>] [--branch main]
   devix repo add <repo-id> --url <git-url> [--base master] [--codegraph-init]
   devix repo list
   devix change new <change-id> --title <标题> [--repo <repo-id[:base-branch]>]
@@ -80,6 +82,14 @@ async function main(argv) {
   }
 
   const root = findWorkspace(options.workspace || process.cwd());
+  if (subject === "update") {
+    print(updateWorkspace(root, {
+      sourceUrl: options.source,
+      branch: options.branch || "main",
+    }));
+    return;
+  }
+
   if (subject === "repo") {
     const repoCommand = positional[1];
     if (repoCommand === "add") {

@@ -40,6 +40,12 @@ AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 g
 - 激活成功后，读取 CLI 输出的核心文件、可选文件、AGENTS、知识来源、下一步和 CodeGraph 状态，恢复工作上下文。
 - Devix 不自动 commit 或 push 自身规格库；是否把个人 changes 提交到远端由用户决定。
 
+## 发布源与使用端
+
+- `kspay-devix` 源码仓库是 Devix 平台规则和 CLI 的唯一发布源；通用 `AGENTS.md`、`standards/` 和 CLI 能力只在发布源修改、验证、提交并发布。
+- `my-devix` 等消费者工作空间不得手工同步修改平台托管文件；在工作空间根目录执行 `devix update` 从 GitHub `main` 更新 `AGENTS.md` 和 `standards/`。
+- `devix update` 不覆盖 `changes/`、`knowledge/`、`repositories.yaml`、`repos/`、`.devix/runtime/` 或工作空间 Git 配置，也不自动 commit 或 push。
+
 ## CodeGraph 索引与代码读取
 
 - CodeGraph 必须针对当前实际代码目录运行：默认 checkout 模式使用 `repos/<repo-id>`；显式启用 worktree 时才使用 `.worktrees/<change-id>/<repo-id>`。不能拿其他目录或分支的索引分析当前代码。
@@ -65,7 +71,9 @@ AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 g
 - 只修改当前需求 `repositories` 声明的仓库；扩大范围前先更新影响面并获得必要确认。
 - 先沿真实调用链阅读，再决定新增抽象；优先复用仓库已有模式，不机械复制参考实现。
 - 代码写法、注释风格、构建和测试命令优先遵守目标业务仓库的 `AGENTS.md`；[`standards/coding.md`](./standards/coding.md)、[`standards/comments.md`](./standards/comments.md) 和 [`standards/testing.md`](./standards/testing.md) 仅作为缺省规则。
-- 不自动提交、不自动推送、不自动 stash、不覆盖用户已有修改。
+- 类头禁止过程性或描述性注释；仓库没有更具体规则时，只保留 `@author 姓名 <邮箱>` 和 `Created on YYYY-MM-DD`。
+- 生码和验证完成后不自动 commit 或 push；先汇报结果，只有用户明确要求提交时才创建正式 commit。
+- 不自动 stash、不覆盖用户已有修改。
 - 每次交付都说明修改文件、验证命令、验证结果、未验证项与剩余风险。
 
 ## 分支与现场安全
@@ -74,5 +82,6 @@ AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 g
 - 切换需求前先检查实际分支、HEAD 和工作区是否干净。
 - 默认直接在 `repos/<repo-id>` 中 checkout 需求对应的 feature branch；完成切换后立即对该目录执行 CodeGraph sync（存在索引时）。
 - 实际分支符合 change 清单时，工作区不干净则允许 Devix 自动 `git add -A` 并创建本地 WIP commit；不自动 push 或 stash。
+- 上述 WIP commit 只用于切换 change 时保存现场，不得作为生码完成后的自动正式提交。
 - 实际分支与预期不符、处于 detached HEAD，或脏现场位于 master/main 时，禁止自动 commit 和 checkout；必须展示预期/实际分支、HEAD 与修改文件并请求用户确认。
 - worktree 只用于确实需要同一代码仓库并行开发多个需求的场景，必须由 `change.yaml` 显式声明，不作为默认模式。

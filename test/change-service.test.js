@@ -24,6 +24,7 @@ const {
 const { git, head } = require("../src/git");
 const { initializeWorkspace } = require("../src/workspace-service");
 const { addRepository, listRepositories } = require("../src/repository-service");
+const { updateWorkspace } = require("../src/update-service");
 const { main: cliMain } = require("../src/cli");
 
 const PROJECT_ROOT = path.resolve(__dirname, "..");
@@ -171,6 +172,64 @@ test("install command is an alias for init and protects non-empty directories", 
     assert.equal(error.code, "WORKSPACE_NOT_EMPTY");
     return true;
   });
+});
+
+test("update syncs only platform-managed files without committing consumer state", async () => {
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), "devix-update-test-"));
+  const publisher = path.join(parent, "publisher");
+  const workspace = path.join(parent, "workspace");
+  fs.mkdirSync(publisher);
+  git(publisher, ["init", "-b", "main"]);
+  git(publisher, ["config", "user.name", "Devix Test"]);
+  git(publisher, ["config", "user.email", "devix@example.test"]);
+  write(path.join(publisher, "AGENTS.md"), "# published agents\n");
+  write(path.join(publisher, "standards", "README.md"), "# published standards\n");
+  write(path.join(publisher, "standards", "new-rule.md"), "# new rule\n");
+  write(path.join(publisher, "changes", "must-not-copy.md"), "publisher change\n");
+  git(publisher, ["add", "-A"]);
+  git(publisher, ["commit", "-m", "publish rules"]);
+
+  initializeWorkspace(workspace, { branch: "main" });
+  write(path.join(workspace, "AGENTS.md"), "# local agents\n");
+  write(path.join(workspace, "changes", "consumer.md"), "consumer change\n");
+  write(path.join(workspace, "knowledge", "README.md"), "consumer knowledge\n");
+  write(path.join(workspace, "repositories.yaml"), "schema_version: 1\nrepositories: [consumer]\n");
+  write(path.join(workspace, ".devix", "runtime", "workspace-state.yaml"), "active_change_id: consumer\n");
+
+  const result = updateWorkspace(workspace, { sourceUrl: publisher, branch: "main" });
+
+  assert.equal(fs.readFileSync(path.join(workspace, "AGENTS.md"), "utf8"), "# published agents\n");
+  assert.equal(fs.readFileSync(path.join(workspace, "standards", "new-rule.md"), "utf8"), "# new rule\n");
+  assert.equal(fs.readFileSync(path.join(workspace, "changes", "consumer.md"), "utf8"), "consumer change\n");
+  assert.equal(fs.existsSync(path.join(workspace, "changes", "must-not-copy.md")), false);
+  assert.equal(fs.readFileSync(path.join(workspace, "knowledge", "README.md"), "utf8"), "consumer knowledge\n");
+  assert.equal(fs.readFileSync(path.join(workspace, "repositories.yaml"), "utf8"), "schema_version: 1\nrepositories: [consumer]\n");
+  assert.equal(fs.readFileSync(path.join(workspace, ".devix", "runtime", "workspace-state.yaml"), "utf8"), "active_change_id: consumer\n");
+  assert.equal(result.git_commit_created, false);
+  assert.equal(result.git_push_performed, false);
+  assert.equal(git(workspace, ["rev-parse", "HEAD"], { allowFailure: true }).status, 128);
+  assert.deepEqual(updateWorkspace(workspace, { sourceUrl: publisher, branch: "main" }).updated_files, []);
+
+  write(path.join(publisher, "AGENTS.md"), "# published agents v2\n");
+  git(publisher, ["add", "AGENTS.md"]);
+  git(publisher, ["commit", "-m", "publish rules v2"]);
+  let output = "";
+  const originalWrite = process.stdout.write;
+  process.stdout.write = (chunk) => {
+    output += chunk;
+    return true;
+  };
+  try {
+    await cliMain(["update", "--workspace", workspace, "--source", publisher, "--branch", "main"]);
+  } finally {
+    process.stdout.write = originalWrite;
+  }
+  assert.equal(JSON.parse(output).updated_files.includes("AGENTS.md"), true);
+  assert.equal(fs.readFileSync(path.join(workspace, "AGENTS.md"), "utf8"), "# published agents v2\n");
+  assert.throws(
+    () => updateWorkspace(workspace, { sourceUrl: "https://user:token@example.test/devix.git" }),
+    (error) => error.code === "UPDATE_SOURCE_CONTAINS_CREDENTIALS",
+  );
 });
 
 test("repo add clones the declared base branch and writes the catalog", () => {

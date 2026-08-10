@@ -48,13 +48,15 @@ kspay-devix/
 完整步骤见 [`docs/installation.md`](./docs/installation.md)。推荐把 Devix CLI 与实际工作空间分开：
 
 ```bash
-npm exec --yes \
-  --package='git+ssh://git@github.com/Ricarad/kspay-devix.git#main' \
-  -- devix install ~/work/my-devix --branch main
+npm install -g 'git+ssh://git@github.com/Ricarad/kspay-devix.git#main'
+devix install ~/work/my-devix --branch main
 
 cd ~/work/my-devix
 devix repo add kspay-promo --url <git-url> --base master
+devix update
 ```
+
+平台通用规则只在本仓库修改和发布。消费者运行 `devix update` 后，仅同步 `AGENTS.md` 与 `standards/`；个人 changes、知识、仓库登记、业务代码和本机状态保持不变，命令也不会自动 commit 或 push。
 
 在 Devix 源码仓库本地开发时，也可以：
 
