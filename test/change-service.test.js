@@ -137,14 +137,17 @@ test("new creates exactly five core files and activates the change", () => {
   assert.equal(context.phase, "clarification");
 });
 
-test("init creates a minimal consumer workspace without tool source directories", () => {
+test("init creates a minimal non-Git consumer workspace without tool source directories", () => {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "devix-init-"));
   const target = path.join(parent, "workspace");
 
-  const result = initializeWorkspace(target, { branch: "main" });
+  const result = initializeWorkspace(target);
 
-  assert.equal(result.git_initialized, true);
-  assert.equal(git(target, ["branch", "--show-current"]).stdout.trim(), "main");
+  assert.equal(result.git_initialized, false);
+  assert.equal(result.git_branch, null);
+  assert.deepEqual(result.warnings, []);
+  assert.equal(fs.existsSync(path.join(target, ".git")), false);
+  assert.notEqual(git(target, ["rev-parse", "--is-inside-work-tree"], { allowFailure: true }).status, 0);
   for (const required of ["AGENTS.md", "README.md", "devix.yaml", "repositories.yaml", "changes", "knowledge", "standards", "repos", ".devix"]) {
     assert.equal(fs.existsSync(path.join(target, required)), true, required);
   }
@@ -156,18 +159,27 @@ test("init creates a minimal consumer workspace without tool source directories"
   assert.equal(fs.readdirSync(path.join(target, "changes", "consumer-change")).length, 5);
 });
 
-test("install command is an alias for init and protects non-empty directories", async () => {
+test("install accepts deprecated Git options without initializing Git", async () => {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "devix-install-"));
   const target = path.join(parent, "workspace");
   const originalWrite = process.stdout.write;
-  process.stdout.write = () => true;
+  let output = "";
+  process.stdout.write = (chunk) => {
+    output += chunk;
+    return true;
+  };
   try {
-    await cliMain(["install", target, "--branch", "main"]);
+    await cliMain(["install", target, "--branch", "main", "--no-git"]);
   } finally {
     process.stdout.write = originalWrite;
   }
+  const result = JSON.parse(output);
   assert.equal(fs.existsSync(path.join(target, "devix.yaml")), true);
-  assert.equal(git(target, ["branch", "--show-current"]).stdout.trim(), "main");
+  assert.equal(fs.existsSync(path.join(target, ".git")), false);
+  assert.equal(result.git_initialized, false);
+  assert.equal(result.git_branch, null);
+  assert.equal(result.warnings.length, 2);
+  assert.equal(result.warnings.every((warning) => warning.includes("已弃用")), true);
   assert.throws(() => initializeWorkspace(target), (error) => {
     assert.equal(error.code, "WORKSPACE_NOT_EMPTY");
     return true;

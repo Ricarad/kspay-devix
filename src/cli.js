@@ -44,7 +44,7 @@ function print(value) {
 
 function usage() {
   return `用法：
-  devix init|install <workspace-directory> [--branch main] [--no-git]
+  devix init|install <workspace-directory>
   devix update [--source <devix-git-url>] [--branch main]
   devix repo add <repo-id> --url <git-url> [--base master] [--codegraph-init]
   devix repo list
@@ -75,8 +75,8 @@ async function main(argv) {
   if (subject === "init" || subject === "install") {
     if (!positional[1]) throw new DevixError("USAGE", usage());
     print(initializeWorkspace(positional[1], {
-      branch: options.branch || "main",
-      initializeGit: !options["no-git"],
+      branch: options.branch,
+      noGit: Boolean(options["no-git"]),
     }));
     return;
   }

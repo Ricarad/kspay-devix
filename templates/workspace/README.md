@@ -1,8 +1,10 @@
 # Devix Workspace
 
-该仓库保存团队通用规范、知识库和个人 change 规格；业务代码仓库位于 `repos/`，保持独立 Git 历史且不进入本仓库。
+该工作空间保存团队通用规范、知识库和个人 change 规格；它的根目录不是 Git 仓库，业务代码仓库位于 `repos/` 并保持各自独立的 Git 历史。
 
 该工作空间可通过 `devix install <目录>` 或等价的 `devix init <目录>` 生成。
+
+工作空间根目录不是 Git 仓库，`changes/` 当前也不单独初始化 Git。业务代码仓库只在 `repos/` 下保留各自独立 Git。
 
 查看命令：`devix --help`。
 
@@ -35,4 +37,4 @@ devix change status
 devix update
 ```
 
-该命令不会修改个人 changes、knowledge、仓库登记、业务代码或 Git 状态，也不会自动 commit/push。
+该命令不会修改个人 changes、knowledge、仓库登记、业务代码或业务仓库 Git 状态，也不会自动 commit/push。changes、knowledge、repositories 和 runtime 当前都只保存在本机，不要给工作空间根目录配置 Git 远端。

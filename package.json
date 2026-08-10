@@ -1,6 +1,6 @@
 {
   "name": "kspay-devix",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Spec-driven multi-repository change workspace controller",
   "repository": {

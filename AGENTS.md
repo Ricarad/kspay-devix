@@ -38,13 +38,14 @@ AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 g
 - 用户要求切回历史需求时，使用 `devix change switch <id>`，不能只手工 checkout 代码分支而不更新 active change。
 - CLI 返回 `WORKSPACE_CONFLICT` 时，向用户展示预期/实际分支、HEAD 和修改文件并请求确认；未确认前不得重试带 `--adopt-current-branch` 的命令。
 - 激活成功后，读取 CLI 输出的核心文件、可选文件、AGENTS、知识来源、下一步和 CodeGraph 状态，恢复工作上下文。
-- Devix 不自动 commit 或 push 自身规格库；是否把个人 changes 提交到远端由用户决定。
+- Devix 不自动 commit 或 push 工作空间文件；消费者根目录和 `changes/` 当前都不初始化 Git，需求共享方案后续单独设计。
 
 ## 发布源与使用端
 
 - `kspay-devix` 源码仓库是 Devix 平台规则和 CLI 的唯一发布源；通用 `AGENTS.md`、`standards/` 和 CLI 能力只在发布源修改、验证、提交并发布。
 - `my-devix` 等消费者工作空间不得手工同步修改平台托管文件；在工作空间根目录执行 `devix update` 从 GitHub `main` 更新 `AGENTS.md` 和 `standards/`。
-- `devix update` 不覆盖 `changes/`、`knowledge/`、`repositories.yaml`、`repos/`、`.devix/runtime/` 或工作空间 Git 配置，也不自动 commit 或 push。
+- `devix update` 不覆盖 `changes/`、`knowledge/`、`repositories.yaml`、`repos/` 或 `.devix/runtime/`，也不自动 commit 或 push。
+- 消费者工作空间根目录不是 Git 仓库，`devix install/init` 不执行 `git init`；当前也不为 `changes/` 初始化独立 Git。业务仓库仍只在 `repos/<repo-id>` 中维护各自 Git。
 
 ## CodeGraph 索引与代码读取
 

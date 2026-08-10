@@ -2,12 +2,12 @@
 
 ## 1. 目录与状态边界
 
-- `repos/<repo-id>/`：默认代码仓库目录，被 Devix Git 忽略。
+- `repos/<repo-id>/`：默认代码仓库目录，每个业务仓库维护自己的 Git。
 - `.worktrees/`：仅为显式并行场景保留，不是默认模式。
-- `changes/<change-id>/change.yaml`：可进入 Devix Git的需求分支和恢复状态。
-- `.devix/runtime/workspace-state.yaml`：本机 active change 指针，不进入 Git。
+- `changes/<change-id>/change.yaml`：本机保存的需求分支和恢复状态，当前不初始化独立 Git。
+- `.devix/runtime/workspace-state.yaml`：本机 active change 指针。
 
-业务仓库保持独立 Git 历史。Devix 不使用 submodule，不自动 fetch、pull、push、stash 或 reset，也不自动提交/推送 Devix 自身状态文件。
+消费者工作空间根目录不是 Git 仓库，也不应配置 Git 远端；`changes/`、`knowledge/`、仓库登记和 runtime 当前都只保存在本机。业务仓库保持独立 Git 历史。Devix 不使用 submodule，不自动 fetch、pull、push、stash 或 reset，也不自动提交工作空间状态文件。
 
 ## 2. 仓库声明
 

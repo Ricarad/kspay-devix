@@ -35,7 +35,7 @@ kspay-devix/
 
 - `change.yaml` 是阶段、仓库分支、阻塞项和下一步动作的机器可读事实源。
 - Markdown 负责完整分析、方案和评审依据，不重复充当另一套状态机。
-- `repos/` 只放代码仓库并整体忽略；Devix Git 只中心化保存规格、规范和知识。
+- `repos/` 只放代码仓库并整体忽略；消费者工作空间根目录和 `changes/` 都不初始化 Git，只有 Devix 发布源自身通过 Git 管理。
 - 默认在 `repos/<repo-id>` 中按 change 自动保存现场并切换 feature branch；worktree 仅在确有同仓库并行开发需要时显式启用。
 - AI 不自行通过需求澄清或技术评审 gate，不在 `implementation` 之前生成工程代码。
 - 编码前必须读取每个目标业务仓库及目标模块适用的 `AGENTS.md`；仓库规范优先，Devix 通用规范只补空白。
@@ -49,14 +49,14 @@ kspay-devix/
 
 ```bash
 npm install -g 'git+ssh://git@github.com/Ricarad/kspay-devix.git#main'
-devix install ~/work/my-devix --branch main
+devix install ~/work/my-devix
 
 cd ~/work/my-devix
 devix repo add kspay-promo --url <git-url> --base master
 devix update
 ```
 
-平台通用规则只在本仓库修改和发布。消费者运行 `devix update` 后，仅同步 `AGENTS.md` 与 `standards/`；个人 changes、知识、仓库登记、业务代码和本机状态保持不变，命令也不会自动 commit 或 push。
+平台通用规则只在本仓库修改和发布。消费者工作空间是普通目录，不应在根目录配置 Git 远端；其中的 changes、知识、仓库登记和 runtime 当前都是本机文件。消费者运行 `devix update` 后，仅同步 `AGENTS.md` 与 `standards/`，其余内容保持不变，命令也不会自动 commit 或 push。
 
 在 Devix 源码仓库本地开发时，也可以：
 

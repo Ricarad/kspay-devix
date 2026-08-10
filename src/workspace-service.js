@@ -1,6 +1,5 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { run } = require("./git");
 const { DevixError } = require("./errors");
 
 const PACKAGE_ROOT = path.resolve(__dirname, "..");
@@ -29,14 +28,19 @@ function initializeWorkspace(targetPath, options = {}) {
   copyDirectory(path.join(PACKAGE_ROOT, "standards"), path.join(target, "standards"));
   copyDirectory(path.join(PACKAGE_ROOT, "knowledge"), path.join(target, "knowledge"));
 
-  if (options.initializeGit !== false) {
-    run("git", ["init", "-b", options.branch || "main"], { cwd: target });
+  const warnings = [];
+  if (options.branch) {
+    warnings.push("--branch 已弃用：Devix 工作空间不再初始化 Git，该参数已忽略");
+  }
+  if (options.noGit) {
+    warnings.push("--no-git 已弃用：Devix 工作空间默认且始终不初始化 Git");
   }
 
   return {
     workspace: target,
-    git_initialized: options.initializeGit !== false,
-    git_branch: options.initializeGit === false ? null : options.branch || "main",
+    git_initialized: false,
+    git_branch: null,
+    warnings,
     next_commands: [
       `cd ${target}`,
       "devix repo add <repo-id> --url <git-url> --base master",

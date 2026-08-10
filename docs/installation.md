@@ -14,7 +14,7 @@ npm exec --yes \
   -- devix install .
 ```
 
-这条命令会临时从 Git 下载 Devix CLI，在当前目录生成最小工作空间并执行 `git init -b main`，不会把 Devix CLI 永久安装到全局。目标目录不是空目录时会停止，避免覆盖已有文件。
+这条命令会临时从 Git 下载 Devix CLI，在当前目录生成最小工作空间，不会初始化工作空间 Git，也不会把 Devix CLI 永久安装到全局。目标目录不是空目录时会停止，避免覆盖已有文件。
 
 下载到 npm 临时缓存中的包仅包含 CLI 运行时、消费者模板、通用规范和安装文档，不包含 Devix 自身的 `changes/`、`test/`、`scripts/` 或内部设计文档；最终目标目录只生成下文列出的消费者工作空间。
 
@@ -23,7 +23,7 @@ npm exec --yes \
 ```bash
 npm exec --yes \
   --package='git+ssh://git@github.com/Ricarad/kspay-devix.git#main' \
-  -- devix install ~/work/kspay-workspace --branch main
+  -- devix install ~/work/kspay-workspace
 ```
 
 ### 全局安装
@@ -64,7 +64,7 @@ devix update --source git@github.com:Ricarad/kspay-devix.git --branch main
 ## 2. 创建最小工作空间
 
 ```bash
-devix install ~/work/kspay-workspace --branch main
+devix install ~/work/kspay-workspace
 cd ~/work/kspay-workspace
 ```
 
@@ -83,7 +83,9 @@ kspay-workspace/
 └── .devix/runtime/         # Git 忽略
 ```
 
-默认执行 `git init -b main`，但不会 commit、配置远端或 push。已有外层仓库或不希望初始化 Git 时使用 `--no-git`。
+生成结果是普通工作目录：根目录不初始化 Git，`changes/` 当前也不初始化独立 Git。`knowledge/`、`repositories.yaml` 和 `.devix/runtime/` 同样只作为本机文件保存；不要为工作空间根目录配置 Git 远端。`repos/` 中的业务仓库仍保持各自独立的 Git。
+
+旧安装脚本中的 `--branch` 和 `--no-git` 暂时仍可被接受，但两个参数都不会执行 Git 操作，命令结果会返回弃用提示。新脚本不应继续传入它们。
 
 ## 3. 登记并克隆业务仓库
 
@@ -151,15 +153,8 @@ devix change new bank-seckill-push \
   --repo kspay-promo
 ```
 
-## 5. 配置工作空间远端
+## 5. 工作空间 Git 边界
 
-通用 `AGENTS.md`、`standards/`、`knowledge/`、模板配置和仓库 catalog 适合通过 Git 分享。个人 `changes/` 是否提交由使用者决定。
+消费者工作空间根目录不是 Git 仓库，也不应配置 Git 远端。当前 `changes/`、`knowledge/`、`repositories.yaml` 和 `.devix/runtime/` 都只保存在本机；需求共享方案后续单独设计。
 
-```bash
-git remote add origin <workspace-git-url>
-git add AGENTS.md README.md devix.yaml repositories.yaml standards knowledge changes/README.md .gitignore
-git commit -m "Initialize Devix workspace"
-git push -u origin main
-```
-
-`repos/`、`.devix/runtime/` 和 `node_modules/` 已被忽略，不会进入工作空间 Git。
+根 `.gitignore` 仍会生成，用于工作空间被意外放入外层 Git 时保护 `repos/`、`.devix/runtime/`、`.worktrees/`、CodeGraph 索引和依赖目录。`repos/<repo-id>` 下由 `repo add` 克隆的业务仓库不受影响，继续维护各自的 `.git`、远端和分支历史。
