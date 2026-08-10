@@ -1,0 +1,38 @@
+schema_version: 1
+
+workspace:
+  changes_dir: changes
+  repos_dir: repos
+  worktrees_dir: .worktrees
+  knowledge_dir: knowledge
+  default_workspace_mode: checkout
+
+lifecycle:
+  phases:
+    - clarification
+    - design
+    - implementation
+    - verification
+    - closed
+  statuses:
+    - active
+    - paused
+    - blocked
+    - done
+    - cancelled
+
+gates:
+  before_design:
+    - clarification
+    - knowledge
+  before_implementation:
+    - design_review
+  before_closed:
+    - verification
+
+codegraph:
+  sync_when_index_exists: true
+  sync_on_workspace_activate: true
+  sync_before_impact_analysis: true
+  auto_init: false
+  sync_failure_policy: block_codegraph_read

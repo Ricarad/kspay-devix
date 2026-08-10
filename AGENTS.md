@@ -1,0 +1,78 @@
+# kspay-devix 协作规则
+
+本文件适用于整个 Devix 工作区。进入 `repos/` 中的业务仓库后，必须读取从该仓库根目录到目标代码目录沿途所有适用的 `AGENTS.md`。
+
+对于编码风格、工程结构、构建方式、测试方式等仓库内开发规范，优先级为：
+
+1. 目标代码所在目录最近一级的 `AGENTS.md`。
+2. 该业务仓库上层目录的 `AGENTS.md`，越具体越优先。
+3. Devix `standards/` 中的通用规范，仅补充业务仓库没有规定的部分。
+
+Devix 的需求状态、评审 gate、多仓库现场安全仍由本文件和当前 change 约束。若业务仓库规范与已确认的功能需求发生实质冲突，先记录冲突并请求确认，不能用任一侧静默覆盖另一侧。
+
+## 开始任何需求前
+
+1. 若 `.devix/runtime/workspace-state.yaml` 存在，读取它确认当前激活的 change，并核对唯一的 `changes/<change-id>/change.yaml`；不存在表示尚未激活 change。
+2. 读取该需求的 `README.md`、`design.md`、`tasks.md`、`verification.md`，以及存在时的 `decisions.md`。
+3. 读取 `change.yaml.repositories` 涉及的仓库清单，不凭目录名猜测影响仓库。
+4. 对每个涉及的仓库，先读取仓库根目录及目标模块沿途适用的全部 `AGENTS.md`，整理仓库特定的代码、构建和测试要求。
+5. 再读取 `standards/`，只用它补齐仓库规范未覆盖的部分，不反向覆盖仓库规则。
+6. 如果当前代码工作目录存在 `.codegraph/`，第一次理解或定位代码前必须先对该目录执行 `codegraph sync`，同步成功后优先使用 CodeGraph；不可用时再使用文本搜索并说明边界。
+
+## 阶段约束
+
+- `clarification`：只整理原始需求、范围、术语、验收标准和待确认项；完成后定向读取知识库。
+- `design`：允许只读代码勘察，记录真实调用链、影响仓库和未验证假设，更新技术方案与任务拆解；不得开始工程实现或构建，除非用户明确要求验证性原型。
+- `implementation`：只有需求澄清、知识读取和技术方案评审 gate 通过后才能修改业务代码。
+- `verification`：按验证计划提供单测、联调、回归、发布命令和结果证据，不能把“未运行”写成“通过”。
+- `closed`：验证 gate 通过，恢复摘要和可复用知识已经收口。
+
+AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 gate 标记为 `passed`。用户明确确认后，才同步更新 `change.yaml` 与 `decisions.md`。
+
+## Change 控制
+
+- 用户发来一段新需求描述、需求文档、本地文件或文档链接并表达“开始需求/开始开发”时，视为新 change 入口。不得要求用户提供 change-id、英文标题、仓库 ID、分支名或 CLI 参数。
+- AI 从需求语义生成简洁的 change-id 和标题，先用 `devix change status` 检查 active change，再在内部调用 `devix change new`。原始文件路径/链接写入 `change.yaml.sources`，原始描述和结构化澄清写入 README。
+- 新 change 初始不要求用户指定代码仓库。完成初步澄清后，先读取 knowledge 和 `repositories.yaml`，结合需求关键词、仓库 AGENTS 与必要的只读代码勘察判断影响仓库，再由 AI 内部调用 `repo-add`。
+- 只有需求目标、范围或验收标准存在会改变方案的关键歧义时才询问用户；能从需求文档、知识库、仓库配置或代码中查明的信息不得反问用户。
+- 用户要求切回历史需求时，使用 `devix change switch <id>`，不能只手工 checkout 代码分支而不更新 active change。
+- CLI 返回 `WORKSPACE_CONFLICT` 时，向用户展示预期/实际分支、HEAD 和修改文件并请求确认；未确认前不得重试带 `--adopt-current-branch` 的命令。
+- 激活成功后，读取 CLI 输出的核心文件、可选文件、AGENTS、知识来源、下一步和 CodeGraph 状态，恢复工作上下文。
+- Devix 不自动 commit 或 push 自身规格库；是否把个人 changes 提交到远端由用户决定。
+
+## CodeGraph 索引与代码读取
+
+- CodeGraph 必须针对当前实际代码目录运行：默认 checkout 模式使用 `repos/<repo-id>`；显式启用 worktree 时才使用 `.worktrees/<change-id>/<repo-id>`。不能拿其他目录或分支的索引分析当前代码。
+- checkout、创建/切换 worktree、pull、rebase 或其他会改变 HEAD 的操作后，在第一次代码分析前执行 `codegraph sync <path>`。
+- 完成一批代码修改后，在使用 `impact`、`affected`、调用链或最终代码复核前再次执行 sync。
+- 同步成功后，先用 `codegraph explore` 获取相关符号源码和调用路径，再按需用 `node`、`callers`、`callees`、`impact`、`affected` 深挖；结果不足时才使用 `rg` 和直接读文件补充。
+- `.codegraph/` 不存在时不得擅自执行 `codegraph init`；记录“未建立索引”，按仓库约束决定是否请用户建立索引。
+- sync 失败时不得把旧索引结果当成当前分支事实；明确报告失败、索引可能陈旧及所采用的替代检索方式。
+
+## 文档事实边界
+
+- `change.yaml`：当前阶段、生命周期状态、仓库/分支、gate、阻塞项、下一步。
+- `README.md`：需求目标、范围、场景、验收标准、关键结论和未决问题。
+- `design.md`：基于真实代码路径的技术方案、数据/接口/兼容/回滚设计。
+- `decisions.md`（可选）：复杂需求已经确认的选择、负责人、日期和依据；假设不能伪装成决策。
+- `tasks.md`：可执行任务、依赖、状态和验证方式。
+- `verification.md`：测试矩阵、命令、环境、结果、发布证据与未覆盖项。
+
+同一事实出现冲突时，先停止推进并显式消歧，不能静默选择对自己方便的版本。
+
+## 代码生成
+
+- 只修改当前需求 `repositories` 声明的仓库；扩大范围前先更新影响面并获得必要确认。
+- 先沿真实调用链阅读，再决定新增抽象；优先复用仓库已有模式，不机械复制参考实现。
+- 代码写法、注释风格、构建和测试命令优先遵守目标业务仓库的 `AGENTS.md`；[`standards/coding.md`](./standards/coding.md)、[`standards/comments.md`](./standards/comments.md) 和 [`standards/testing.md`](./standards/testing.md) 仅作为缺省规则。
+- 不自动提交、不自动推送、不自动 stash、不覆盖用户已有修改。
+- 每次交付都说明修改文件、验证命令、验证结果、未验证项与剩余风险。
+
+## 分支与现场安全
+
+- 分支映射以 `change.yaml.repositories` 为准。
+- 切换需求前先检查实际分支、HEAD 和工作区是否干净。
+- 默认直接在 `repos/<repo-id>` 中 checkout 需求对应的 feature branch；完成切换后立即对该目录执行 CodeGraph sync（存在索引时）。
+- 实际分支符合 change 清单时，工作区不干净则允许 Devix 自动 `git add -A` 并创建本地 WIP commit；不自动 push 或 stash。
+- 实际分支与预期不符、处于 detached HEAD，或脏现场位于 master/main 时，禁止自动 commit 和 checkout；必须展示预期/实际分支、HEAD 与修改文件并请求用户确认。
+- worktree 只用于确实需要同一代码仓库并行开发多个需求的场景，必须由 `change.yaml` 显式声明，不作为默认模式。

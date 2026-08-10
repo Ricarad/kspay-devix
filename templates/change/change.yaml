@@ -1,0 +1,48 @@
+schema_version: 1
+id: replace-with-change-id
+title: 替换为需求名称
+type: feature
+owner: ""
+created_at: YYYY-MM-DD
+updated_at: YYYY-MM-DD
+
+phase: clarification
+status: paused
+next_action: 完成需求澄清，并在进入方案设计前读取相关知识库
+
+sources: []
+
+resume:
+  context_summary: ""
+  knowledge_status: pending
+  knowledge_sources: []
+  last_paused_at: null
+  last_activated_at: null
+
+repositories:
+  - id: replace-with-repo-id
+    local_path: repos/replace-with-repo-id
+    base_branch: master
+    feature_branch: feature/replace-with-change-id
+    workspace_mode: checkout
+    worktree_path: ""
+    modules: []
+    start_ref: ""
+    last_known_head: ""
+    snapshot: null
+
+gates:
+  clarification:
+    status: pending
+    reviewer: ""
+    evidence: ""
+  design_review:
+    status: pending
+    reviewer: ""
+    evidence: ""
+  verification:
+    status: pending
+    reviewer: ""
+    evidence: ""
+
+blockers: []

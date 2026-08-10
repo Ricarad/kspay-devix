@@ -1,0 +1,7 @@
+/repos/
+/.worktrees/
+/.devix/runtime/
+/node_modules/
+.DS_Store
+.idea/
+*.iml

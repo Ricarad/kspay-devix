@@ -1,0 +1,11 @@
+# Devix 管理的是规格与规范，业务仓库及本机工作现场不进入本仓库。
+/repos/
+/.worktrees/
+/.devix/local.yaml
+/.devix/runtime/
+/node_modules/
+
+# 常见本机文件
+.DS_Store
+.idea/
+*.iml

@@ -1,0 +1,36 @@
+{
+  "name": "kspay-devix",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Spec-driven multi-repository change workspace controller",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/Ricarad/kspay-devix.git"
+  },
+  "type": "commonjs",
+  "bin": {
+    "devix": "bin/devix.js"
+  },
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "bin/",
+    "src/",
+    "templates/",
+    "standards/",
+    "knowledge/",
+    "devix.yaml",
+    "docs/installation.md"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "check": "node scripts/check-workspace.js && node scripts/check-package.js",
+    "check:package": "node scripts/check-package.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "yaml": "^2.8.1"
+  }
+}
