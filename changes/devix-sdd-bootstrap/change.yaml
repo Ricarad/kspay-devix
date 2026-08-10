@@ -8,14 +8,14 @@ updated_at: 2026-08-10
 
 phase: closed
 status: done
-next_action: 邀请使用者访问 GitHub 私密仓库，并从远端执行一次目录初始化
+next_action: 邀请使用者访问 GitHub 私密仓库，并登记第一个真实业务仓库
 
 sources:
   - /Users/chenshaojie/IdeaProjects/kspay/changes
   - /Users/chenshaojie/IdeaProjects/kspay-marketing/changes
 
 resume:
-  context_summary: 已完成五阶段五文件、活动 change、Git 快照恢复、最小工作空间 init、仓库 clone 和自动化测试
+  context_summary: 已完成五阶段五文件、活动 change、Git 快照恢复、私密 GitHub 发布、远端目录安装和自动化测试
   knowledge_status: not_found
   knowledge_sources: []
   last_paused_at: null

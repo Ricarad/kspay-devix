@@ -17,6 +17,7 @@
 | A11 | 自然需求入口规则 | passed | 根 AGENTS、源码/消费者 README 和安装指引均规定 AI 自动建 change，CLI 仅用于接管 |
 | A12 | 单命令目录安装 | passed | install/init 别名生成最小工作空间并初始化 main；非空目录拒绝覆盖 |
 | A13 | 发布边界检查 | passed | npm 包白名单和自动检查均排除 changes、test、scripts、repos、runtime 与内部设计文档 |
+| A14 | 私密仓库远端安装 | passed | 从 GitHub main 执行 npm exec，目标目录只包含消费者工作空间并初始化 Git main |
 
 ## 2. 单元与集成测试
 
@@ -32,6 +33,9 @@ PACKAGE_OK files=28
 
 npm pack --dry-run
 消费者包仅包含 CLI、工作空间模板、standards、knowledge 和安装文档
+
+npm exec --yes --package='git+ssh://git@github.com/Ricarad/kspay-devix.git#main' -- devix install <temp-dir> --branch main
+远端安装成功；目标目录未出现 src、test、scripts、templates、docs 或 node_modules
 ```
 
 ## 3. 文档与结构验证
