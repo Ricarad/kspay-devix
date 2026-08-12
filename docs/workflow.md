@@ -59,3 +59,11 @@ Gate 状态为 `pending / passed / failed / waived`：
 5. 切换目标分支后同步 CodeGraph，输出需要恢复的核心文件、AGENTS、知识来源和下一步。
 
 切回历史 change 使用相同的两阶段规则：先完整预检和保存当前 change，再检查目标分支与 `last_known_head`。HEAD 漂移时停止，不 reset；切换成功后重新加载规格上下文。
+
+## 6. 事实落档与跨会话恢复
+
+当前 change 不使用任何跨会话 memory 保存或恢复需求事实。需求与验收、技术方案、已确认决策、任务进度、生命周期状态和验证证据必须分别落在 `README.md`、`design.md`、`decisions.md`、`tasks.md`、`change.yaml` 和 `verification.md` 中。
+
+用户确认方案或代码事实变化后，先同步所有受影响文件并删除失效描述，再继续编码。`resume.context_summary` 只概括当前进度、下一步和正式文档入口，不能复制或替代完整方案。预计上下文压缩、准备新会话、暂停或切换 change、工作交接或结束工作前，应完成一次文件一致性检查；新会话只从 change 文件、已登记知识来源和当前代码事实恢复。
+
+`knowledge/` 仅保存已经验证、可跨需求复用的通用知识，不保存单个 change 的过程状态或方案正文。

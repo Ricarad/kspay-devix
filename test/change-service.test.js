@@ -135,6 +135,9 @@ test("new creates exactly five core files and activates the change", () => {
   assert.deepEqual(files, ["README.md", "change.yaml", "design.md", "tasks.md", "verification.md"]);
   assert.equal(loadRuntimeState(root).active_change_id, "new-feature");
   assert.equal(context.phase, "clarification");
+  const changeReadme = fs.readFileSync(path.join(root, "changes", "new-feature", "README.md"), "utf8");
+  assert.equal(changeReadme.includes("## 事实落档与恢复规则"), true);
+  assert.equal(changeReadme.includes("禁止使用任何跨会话 memory"), true);
 });
 
 test("init creates a minimal non-Git consumer workspace without tool source directories", () => {
@@ -157,6 +160,11 @@ test("init creates a minimal non-Git consumer workspace without tool source dire
   const context = createAndActivateChange(target, "consumer-change", "Consumer Change");
   assert.equal(context.change_id, "consumer-change");
   assert.equal(fs.readdirSync(path.join(target, "changes", "consumer-change")).length, 5);
+  assert.equal(
+    fs.readFileSync(path.join(target, "changes", "consumer-change", "README.md"), "utf8")
+      .includes("## 事实落档与恢复规则"),
+    true,
+  );
 });
 
 test("install accepts deprecated Git options without initializing Git", async () => {
@@ -194,7 +202,8 @@ test("update syncs only platform-managed files without committing consumer state
   git(publisher, ["init", "-b", "main"]);
   git(publisher, ["config", "user.name", "Devix Test"]);
   git(publisher, ["config", "user.email", "devix@example.test"]);
-  write(path.join(publisher, "AGENTS.md"), "# published agents\n");
+  const publishedAgents = "# published agents\n\n## Change 事实落档与跨会话恢复\n\n禁止使用跨会话 memory。\n";
+  write(path.join(publisher, "AGENTS.md"), publishedAgents);
   write(path.join(publisher, "standards", "README.md"), "# published standards\n");
   write(path.join(publisher, "standards", "new-rule.md"), "# new rule\n");
   write(path.join(publisher, "changes", "must-not-copy.md"), "publisher change\n");
@@ -207,22 +216,29 @@ test("update syncs only platform-managed files without committing consumer state
   write(path.join(workspace, "knowledge", "README.md"), "consumer knowledge\n");
   write(path.join(workspace, "repositories.yaml"), "schema_version: 1\nrepositories: [consumer]\n");
   write(path.join(workspace, ".devix", "runtime", "workspace-state.yaml"), "active_change_id: consumer\n");
+  write(path.join(workspace, "repos", "consumer-repo", ".git", "HEAD"), "ref: refs/heads/feature/consumer\n");
 
   const result = updateWorkspace(workspace, { sourceUrl: publisher, branch: "main" });
 
-  assert.equal(fs.readFileSync(path.join(workspace, "AGENTS.md"), "utf8"), "# published agents\n");
+  assert.equal(fs.readFileSync(path.join(workspace, "AGENTS.md"), "utf8"), publishedAgents);
+  assert.equal(fs.readFileSync(path.join(workspace, "AGENTS.md"), "utf8").includes("Change 事实落档与跨会话恢复"), true);
   assert.equal(fs.readFileSync(path.join(workspace, "standards", "new-rule.md"), "utf8"), "# new rule\n");
   assert.equal(fs.readFileSync(path.join(workspace, "changes", "consumer.md"), "utf8"), "consumer change\n");
   assert.equal(fs.existsSync(path.join(workspace, "changes", "must-not-copy.md")), false);
   assert.equal(fs.readFileSync(path.join(workspace, "knowledge", "README.md"), "utf8"), "consumer knowledge\n");
   assert.equal(fs.readFileSync(path.join(workspace, "repositories.yaml"), "utf8"), "schema_version: 1\nrepositories: [consumer]\n");
   assert.equal(fs.readFileSync(path.join(workspace, ".devix", "runtime", "workspace-state.yaml"), "utf8"), "active_change_id: consumer\n");
+  assert.equal(
+    fs.readFileSync(path.join(workspace, "repos", "consumer-repo", ".git", "HEAD"), "utf8"),
+    "ref: refs/heads/feature/consumer\n",
+  );
   assert.equal(result.git_commit_created, false);
   assert.equal(result.git_push_performed, false);
   assert.equal(git(workspace, ["rev-parse", "HEAD"], { allowFailure: true }).status, 128);
   assert.deepEqual(updateWorkspace(workspace, { sourceUrl: publisher, branch: "main" }).updated_files, []);
 
-  write(path.join(publisher, "AGENTS.md"), "# published agents v2\n");
+  const publishedAgentsV2 = publishedAgents.replace("# published agents", "# published agents v2");
+  write(path.join(publisher, "AGENTS.md"), publishedAgentsV2);
   git(publisher, ["add", "AGENTS.md"]);
   git(publisher, ["commit", "-m", "publish rules v2"]);
   let output = "";
@@ -237,7 +253,7 @@ test("update syncs only platform-managed files without committing consumer state
     process.stdout.write = originalWrite;
   }
   assert.equal(JSON.parse(output).updated_files.includes("AGENTS.md"), true);
-  assert.equal(fs.readFileSync(path.join(workspace, "AGENTS.md"), "utf8"), "# published agents v2\n");
+  assert.equal(fs.readFileSync(path.join(workspace, "AGENTS.md"), "utf8"), publishedAgentsV2);
   assert.throws(
     () => updateWorkspace(workspace, { sourceUrl: "https://user:token@example.test/devix.git" }),
     (error) => error.code === "UPDATE_SOURCE_CONTAINS_CREDENTIALS",

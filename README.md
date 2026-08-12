@@ -35,6 +35,7 @@ kspay-devix/
 
 - `change.yaml` 是阶段、仓库分支、阻塞项和下一步动作的机器可读事实源。
 - Markdown 负责完整分析、方案和评审依据，不重复充当另一套状态机。
+- 当前 change 的事实必须立即落入对应规格文件并清理冲突旧描述，禁止使用跨会话 memory 中转、备份或恢复需求与技术方案。
 - `repos/` 只放代码仓库并整体忽略；消费者工作空间根目录和 `changes/` 都不初始化 Git，只有 Devix 发布源自身通过 Git 管理。
 - 默认在 `repos/<repo-id>` 中按 change 自动保存现场并切换 feature branch；worktree 仅在确有同仓库并行开发需要时显式启用。
 - AI 不自行通过需求澄清或技术评审 gate，不在 `implementation` 之前生成工程代码。
