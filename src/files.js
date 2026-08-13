@@ -112,7 +112,7 @@ function createChangeFiles(root, changeId, title, manifest, config = loadConfig(
     throw new DevixError("CHANGE_EXISTS", `change 已存在：${changeId}`);
   }
   fs.mkdirSync(target, { recursive: false });
-  const workspaceTemplateDir = path.join(root, "templates", "change");
+  const workspaceTemplateDir = path.join(root, ".devix", "templates", "change");
   const packageTemplateDir = path.resolve(__dirname, "..", "templates", "change");
   const templateDir = fs.existsSync(workspaceTemplateDir) ? workspaceTemplateDir : packageTemplateDir;
   const replacements = {

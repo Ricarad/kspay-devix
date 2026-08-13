@@ -36,3 +36,12 @@
 - 名称表达领域含义，不使用 `data/info/obj/temp/handle/doIt` 等无法区分职责的泛化词。
 - 布尔值使用可判断真假的语义，如 `enabled`、`hasPermission`、`shouldRetry`。
 - 同一概念在数据库、接口、模型、配置和文档中保持一致；显式协议例外需写入 decisions。
+
+## 6. 异常日志
+
+- 本规则适用于所有 SLF4J Logger 实例，不依赖对象名是 `log`、`logger` 或其他名称。
+- 支付团队代码打印日志时禁止使用 `+` 拼接消息字符串。普通日志不携带异常时，按仓库惯例使用 SLF4J `{}` 占位符。
+- 日志需要同时记录动态业务参数和异常堆栈时，不使用 SLF4J `{}` 占位符传递业务参数；先用 `String.format(...)` 生成完整消息，再把异常作为唯一的第二个参数传入：`log.error(String.format("operation failed, identifier=%s", identifier), e)`。
+- 禁止 `log.error("operation failed, identifier={}", identifier, e)` 这类“SLF4J 占位参数 + 末尾异常”混合调用；必须让调用形式明确匹配 `error(String msg, Throwable t)`，避免异常被按普通参数处理而丢失堆栈。
+- 消息不包含动态参数时直接使用 `log.error("operation failed", e)`，不为固定文本套 `String.format`。
+- 异常日志仍需遵守敏感信息约束，不打印完整请求体、素材正文、token 或其他真实敏感数据。

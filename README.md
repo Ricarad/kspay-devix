@@ -57,7 +57,7 @@ devix repo add kspay-promo --url <git-url> --base master
 devix update
 ```
 
-平台通用规则只在本仓库修改和发布。消费者工作空间是普通目录，不应在根目录配置 Git 远端；其中的 changes、知识、仓库登记和 runtime 当前都是本机文件。消费者运行 `devix update` 后，仅同步 `AGENTS.md` 与 `standards/`，其余内容保持不变，命令也不会自动 commit 或 push。
+平台能力只在本仓库修改和发布。消费者工作空间是普通目录，不应在根目录配置 Git 远端；其中的 changes、知识、仓库登记和 runtime 当前都是本机文件。消费者运行 `devix update` 后，会把最新版 CLI 安装到用户级缓存并原子切换稳定启动器，同时同步 `AGENTS.md`、`standards/` 与新 change 模板；已有 change 和其余本机内容保持不变，命令也不会自动 commit 或 push。
 
 在 Devix 源码仓库本地开发时，也可以：
 

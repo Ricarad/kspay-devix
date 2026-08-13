@@ -43,8 +43,8 @@ AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 g
 ## 发布源与使用端
 
 - `kspay-devix` 源码仓库是 Devix 平台规则和 CLI 的唯一发布源；通用 `AGENTS.md`、`standards/` 和 CLI 能力只在发布源修改、验证、提交并发布。
-- `my-devix` 等消费者工作空间不得手工同步修改平台托管文件；在工作空间根目录执行 `devix update` 从 GitHub `main` 更新 `AGENTS.md` 和 `standards/`。
-- `devix update` 不覆盖 `changes/`、`knowledge/`、`repositories.yaml`、`repos/` 或 `.devix/runtime/`，也不自动 commit 或 push。
+- `my-devix` 等消费者工作空间不得手工同步修改平台托管文件；在工作空间根目录执行 `devix update` 从 GitHub `main` 更新 CLI、`AGENTS.md`、`standards/` 和 `.devix/templates/change/`。
+- `devix update` 不覆盖已有 `changes/`、`knowledge/`、`repositories.yaml`、`repos/` 或 `.devix/runtime/`，也不自动 commit 或 push；模板更新只影响之后新创建的 change。
 - 消费者工作空间根目录不是 Git 仓库，`devix install/init` 不执行 `git init`；当前也不为 `changes/` 初始化独立 Git。业务仓库仍只在 `repos/<repo-id>` 中维护各自 Git。
 
 ## CodeGraph 索引与代码读取

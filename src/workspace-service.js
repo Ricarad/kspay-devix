@@ -26,6 +26,7 @@ function initializeWorkspace(targetPath, options = {}) {
   fs.copyFileSync(path.join(workspaceTemplates, "changes-README.md"), path.join(target, "changes", "README.md"));
   fs.copyFileSync(path.join(workspaceTemplates, "gitignore.template"), path.join(target, ".gitignore"));
   copyDirectory(path.join(PACKAGE_ROOT, "standards"), path.join(target, "standards"));
+  copyDirectory(path.join(PACKAGE_ROOT, "templates", "change"), path.join(target, ".devix", "templates", "change"));
   copyDirectory(path.join(PACKAGE_ROOT, "knowledge"), path.join(target, "knowledge"));
 
   const warnings = [];

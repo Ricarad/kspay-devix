@@ -86,6 +86,8 @@ async function main(argv) {
     print(updateWorkspace(root, {
       sourceUrl: options.source,
       branch: options.branch || "main",
+      toolHome: options["tool-home"],
+      launcherPath: options["launcher-path"],
     }));
     return;
   }

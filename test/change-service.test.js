@@ -21,10 +21,11 @@ const {
   saveChange,
   saveRuntimeState,
 } = require("../src/files");
-const { git, head } = require("../src/git");
+const { git, head, run } = require("../src/git");
 const { initializeWorkspace } = require("../src/workspace-service");
 const { addRepository, listRepositories } = require("../src/repository-service");
 const { updateWorkspace } = require("../src/update-service");
+const { PACKAGE_ENTRY, activateToolchain } = require("../src/toolchain-service");
 const { main: cliMain } = require("../src/cli");
 
 const PROJECT_ROOT = path.resolve(__dirname, "..");
@@ -202,10 +203,20 @@ test("update syncs only platform-managed files without committing consumer state
   git(publisher, ["init", "-b", "main"]);
   git(publisher, ["config", "user.name", "Devix Test"]);
   git(publisher, ["config", "user.email", "devix@example.test"]);
+  write(path.join(publisher, "package.json"), JSON.stringify({
+    name: "kspay-devix",
+    version: "9.9.0",
+    private: true,
+    bin: { devix: "bin/devix.js" },
+  }, null, 2));
+  write(path.join(publisher, "bin", "devix.js"), "#!/usr/bin/env node\nprocess.stdout.write('publisher cli\\n');\n");
   const publishedAgents = "# published agents\n\n## Change 事实落档与跨会话恢复\n\n禁止使用跨会话 memory。\n";
   write(path.join(publisher, "AGENTS.md"), publishedAgents);
   write(path.join(publisher, "standards", "README.md"), "# published standards\n");
   write(path.join(publisher, "standards", "new-rule.md"), "# new rule\n");
+  for (const fileName of ["change.yaml", "README.md", "design.md", "tasks.md", "verification.md"]) {
+    write(path.join(publisher, "templates", "change", fileName), `${fileName} published template\n`);
+  }
   write(path.join(publisher, "changes", "must-not-copy.md"), "publisher change\n");
   git(publisher, ["add", "-A"]);
   git(publisher, ["commit", "-m", "publish rules"]);
@@ -218,11 +229,18 @@ test("update syncs only platform-managed files without committing consumer state
   write(path.join(workspace, ".devix", "runtime", "workspace-state.yaml"), "active_change_id: consumer\n");
   write(path.join(workspace, "repos", "consumer-repo", ".git", "HEAD"), "ref: refs/heads/feature/consumer\n");
 
-  const result = updateWorkspace(workspace, { sourceUrl: publisher, branch: "main" });
+  const toolHome = path.join(parent, "tool-home");
+  const launcherPath = path.join(parent, "bin", "devix");
+  const updateOptions = { sourceUrl: publisher, branch: "main", toolHome, launcherPath };
+  const result = updateWorkspace(workspace, updateOptions);
 
   assert.equal(fs.readFileSync(path.join(workspace, "AGENTS.md"), "utf8"), publishedAgents);
   assert.equal(fs.readFileSync(path.join(workspace, "AGENTS.md"), "utf8").includes("Change 事实落档与跨会话恢复"), true);
   assert.equal(fs.readFileSync(path.join(workspace, "standards", "new-rule.md"), "utf8"), "# new rule\n");
+  assert.equal(
+    fs.readFileSync(path.join(workspace, ".devix", "templates", "change", "README.md"), "utf8"),
+    "README.md published template\n",
+  );
   assert.equal(fs.readFileSync(path.join(workspace, "changes", "consumer.md"), "utf8"), "consumer change\n");
   assert.equal(fs.existsSync(path.join(workspace, "changes", "must-not-copy.md")), false);
   assert.equal(fs.readFileSync(path.join(workspace, "knowledge", "README.md"), "utf8"), "consumer knowledge\n");
@@ -234,8 +252,18 @@ test("update syncs only platform-managed files without committing consumer state
   );
   assert.equal(result.git_commit_created, false);
   assert.equal(result.git_push_performed, false);
+  assert.equal(result.cli.version, "9.9.0");
+  assert.equal(result.cli.launcher_path, launcherPath);
+  assert.equal(fs.lstatSync(path.join(toolHome, "current")).isSymbolicLink(), true);
+  assert.equal(fs.readFileSync(launcherPath, "utf8").includes("Managed by devix update"), true);
+  assert.equal(run(launcherPath, []).stdout, "publisher cli\n");
+  createChangeFiles(workspace, "template-check", "Template Check", newManifest("template-check", "Template Check", []));
+  assert.equal(
+    fs.readFileSync(path.join(workspace, "changes", "template-check", "README.md"), "utf8"),
+    "README.md published template\n",
+  );
   assert.equal(git(workspace, ["rev-parse", "HEAD"], { allowFailure: true }).status, 128);
-  assert.deepEqual(updateWorkspace(workspace, { sourceUrl: publisher, branch: "main" }).updated_files, []);
+  assert.deepEqual(updateWorkspace(workspace, updateOptions).updated_files, []);
 
   const publishedAgentsV2 = publishedAgents.replace("# published agents", "# published agents v2");
   write(path.join(publisher, "AGENTS.md"), publishedAgentsV2);
@@ -248,16 +276,47 @@ test("update syncs only platform-managed files without committing consumer state
     return true;
   };
   try {
-    await cliMain(["update", "--workspace", workspace, "--source", publisher, "--branch", "main"]);
+    await cliMain([
+      "update", "--workspace", workspace, "--source", publisher, "--branch", "main",
+      "--tool-home", toolHome, "--launcher-path", launcherPath,
+    ]);
   } finally {
     process.stdout.write = originalWrite;
   }
   assert.equal(JSON.parse(output).updated_files.includes("AGENTS.md"), true);
   assert.equal(fs.readFileSync(path.join(workspace, "AGENTS.md"), "utf8"), publishedAgentsV2);
   assert.throws(
-    () => updateWorkspace(workspace, { sourceUrl: "https://user:token@example.test/devix.git" }),
+    () => updateWorkspace(workspace, {
+      sourceUrl: "https://user:token@example.test/devix.git",
+      toolHome,
+      launcherPath,
+    }),
     (error) => error.code === "UPDATE_SOURCE_CONTAINS_CREDENTIALS",
   );
+});
+
+test("toolchain activation restores the previous version when launcher replacement fails", () => {
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), "devix-toolchain-rollback-"));
+  const toolHome = path.join(parent, "tool-home");
+  const oldVersion = path.join(toolHome, "versions", "0.3.1-old");
+  const newVersion = path.join(toolHome, "versions", "0.4.0-new");
+  write(path.join(oldVersion, PACKAGE_ENTRY), "old\n");
+  write(path.join(newVersion, PACKAGE_ENTRY), "new\n");
+  fs.symlinkSync(oldVersion, path.join(toolHome, "current"), "dir");
+  const invalidLauncherParent = path.join(parent, "launcher-parent-is-file");
+  write(invalidLauncherParent, "not a directory\n");
+
+  assert.throws(() => activateToolchain({
+    toolHome,
+    launcherPath: path.join(invalidLauncherParent, "devix"),
+    version: "0.4.0",
+    versionId: "0.4.0-new",
+    versionRoot: newVersion,
+    entry: path.join(newVersion, PACKAGE_ENTRY),
+    installed: true,
+    nodePath: process.execPath,
+  }));
+  assert.equal(fs.readlinkSync(path.join(toolHome, "current")), oldVersion);
 });
 
 test("repo add clones the declared base branch and writes the catalog", () => {

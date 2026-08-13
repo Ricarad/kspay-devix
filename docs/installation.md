@@ -26,9 +26,9 @@ npm exec --yes \
   -- devix install ~/work/kspay-workspace
 ```
 
-### 全局安装
+### 首次安装稳定入口
 
-需要长期使用 `devix update`、change 和 repo 命令时，从 Git 地址全局安装一次：
+需要长期使用 `devix update`、change 和 repo 命令时，从 Git 地址全局安装一次作为引导：
 
 ```bash
 npm install -g 'git+ssh://git@github.com/Ricarad/kspay-devix.git#main'
@@ -42,9 +42,9 @@ git clone -b main git@github.com:Ricarad/kspay-devix.git ~/.local/share/kspay-de
 npm install -g ~/.local/share/kspay-devix
 ```
 
-要求 Node.js 18 或以上。CLI 的安装位置与日常工作空间相互独立。
+要求 Node.js 18 或以上。首次执行 `devix update` 后，最新版 CLI 会安装到 `~/.devix/versions/<version>-<commit>/`，`~/.devix/current` 原子指向当前版本，稳定启动器位于 `~/.local/bin/devix`。请确保 `~/.local/bin` 位于 PATH 中且优先于 npm 全局 bin；之后无需再次执行全局 npm 安装。
 
-### 更新消费者规则
+### 统一更新 CLI、规则与模板
 
 发布者只在 `kspay-devix` 源仓库修改并推送平台规则。使用者在自己的 Devix 工作空间根目录执行：
 
@@ -52,7 +52,9 @@ npm install -g ~/.local/share/kspay-devix
 devix update
 ```
 
-命令每次从 GitHub `main` 获取最新发布版本，只同步平台托管的 `AGENTS.md` 和 `standards/`。它不修改 `changes/`、`knowledge/`、`repositories.yaml`、`repos/`、`.devix/runtime/` 或 Git 远端，也不会 stage、commit、push。
+命令每次从 GitHub `main` 获取最新发布版本，并完成三件事：把 CLI 安装到新的用户级版本缓存并原子切换稳定启动器；同步平台托管的 `AGENTS.md` 和 `standards/`；同步 `.devix/templates/change/` 供之后的新 change 使用。失败时保留原 CLI current 指针。
+
+它不修改已有 `changes/`、`knowledge/`、`repositories.yaml`、`repos/`、`.devix/runtime/` 或 Git 远端，也不会 stage、commit、push。模板更新只影响之后创建的新 change。
 
 临时验证其他发布分支或源地址时可以显式指定：
 
@@ -80,7 +82,9 @@ kspay-workspace/
 ├── knowledge/
 ├── standards/
 ├── repos/                  # Git 忽略
-└── .devix/runtime/         # Git 忽略
+└── .devix/
+    ├── runtime/            # 本机 active change 状态
+    └── templates/change/   # update 管理的新 change 模板
 ```
 
 生成结果是普通工作目录：根目录不初始化 Git，`changes/` 当前也不初始化独立 Git。`knowledge/`、`repositories.yaml` 和 `.devix/runtime/` 同样只作为本机文件保存；不要为工作空间根目录配置 Git 远端。`repos/` 中的业务仓库仍保持各自独立的 Git。

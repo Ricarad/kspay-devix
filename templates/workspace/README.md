@@ -31,10 +31,10 @@ devix change status
 
 ## 更新平台规则
 
-平台规则由发布源统一维护。需要同步最新的根协作规则和通用 standards 时，在本目录执行：
+平台能力由发布源统一维护。需要同步最新 CLI、根协作规则、通用 standards 和新 change 模板时，在本目录执行：
 
 ```bash
 devix update
 ```
 
-该命令不会修改个人 changes、knowledge、仓库登记、业务代码或业务仓库 Git 状态，也不会自动 commit/push。changes、knowledge、repositories 和 runtime 当前都只保存在本机，不要给工作空间根目录配置 Git 远端。
+该命令把 CLI 安装到用户级版本缓存并原子切换稳定启动器，同时更新 `AGENTS.md`、`standards/` 和 `.devix/templates/change/`。它不会修改已有 changes、knowledge、仓库登记、runtime、业务代码或业务仓库 Git 状态，也不会自动 commit/push；模板更新只影响之后创建的新 change。

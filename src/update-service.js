@@ -3,6 +3,8 @@ const os = require("node:os");
 const path = require("node:path");
 const { run } = require("./git");
 const { DevixError } = require("./errors");
+const { CORE_CHANGE_FILES } = require("./files");
+const { activateToolchain, prepareToolchain } = require("./toolchain-service");
 
 const DEFAULT_SOURCE_URL = "git@github.com:Ricarad/kspay-devix.git";
 const DEFAULT_SOURCE_BRANCH = "main";
@@ -66,35 +68,55 @@ function updateWorkspace(root, options = {}) {
     const sourceCommit = run("git", ["rev-parse", "HEAD"], { cwd: sourceRoot }).stdout.trim();
     const sourceAgents = path.join(sourceRoot, "AGENTS.md");
     const sourceStandards = path.join(sourceRoot, "standards");
+    const sourceChangeTemplates = path.join(sourceRoot, "templates", "change");
     if (!fs.existsSync(sourceAgents) || !fs.statSync(sourceAgents).isFile()) {
       throw new DevixError("UPDATE_SOURCE_INVALID", "更新源缺少 AGENTS.md");
     }
     if (!fs.existsSync(sourceStandards) || !fs.statSync(sourceStandards).isDirectory()) {
       throw new DevixError("UPDATE_SOURCE_INVALID", "更新源缺少 standards/ 目录");
     }
+    if (!fs.existsSync(sourceChangeTemplates) || !fs.statSync(sourceChangeTemplates).isDirectory()) {
+      throw new DevixError("UPDATE_SOURCE_INVALID", "更新源缺少 templates/change/ 目录");
+    }
+    for (const fileName of CORE_CHANGE_FILES) {
+      const template = path.join(sourceChangeTemplates, fileName);
+      if (!fs.existsSync(template) || !fs.statSync(template).isFile()) {
+        throw new DevixError("UPDATE_SOURCE_INVALID", `更新源缺少 change 模板：${fileName}`);
+      }
+    }
 
-    const managedFiles = ["AGENTS.md", ...collectFiles(sourceStandards, "standards")];
+    const prepared = prepareToolchain(sourceRoot, sourceCommit, options);
+    const managedFiles = [
+      { source: "AGENTS.md", target: "AGENTS.md" },
+      ...collectFiles(sourceStandards, "standards").map((relative) => ({ source: relative, target: relative })),
+      ...collectFiles(sourceChangeTemplates, "templates/change").map((relative) => ({
+        source: relative,
+        target: path.join(".devix", "templates", "change", path.relative("templates/change", relative)),
+      })),
+    ];
     const updatedFiles = [];
     const unchangedFiles = [];
-    for (const [index, relative] of managedFiles.entries()) {
-      const source = path.join(sourceRoot, relative);
-      const target = path.resolve(root, relative);
+    for (const [index, managed] of managedFiles.entries()) {
+      const source = path.join(sourceRoot, managed.source);
+      const target = path.resolve(root, managed.target);
       if (sameContent(source, target)) {
-        unchangedFiles.push(relative);
+        unchangedFiles.push(managed.target);
         continue;
       }
       atomicCopy(source, target, index);
-      updatedFiles.push(relative);
+      updatedFiles.push(managed.target);
     }
+    const cli = activateToolchain(prepared);
 
     return {
       workspace: root,
       source_url: sourceUrl,
       source_branch: sourceBranch,
       source_commit: sourceCommit,
-      managed_paths: ["AGENTS.md", "standards/"],
+      managed_paths: ["AGENTS.md", "standards/", ".devix/templates/change/"],
       updated_files: updatedFiles,
       unchanged_files: unchangedFiles,
+      cli,
       git_commit_created: false,
       git_push_performed: false,
     };

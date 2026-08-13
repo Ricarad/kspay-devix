@@ -1,6 +1,6 @@
 /repos/
 /.worktrees/
-/.devix/runtime/
+/.devix/
 /node_modules/
 .DS_Store
 .idea/
