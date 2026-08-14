@@ -19,6 +19,14 @@ Devix 的需求状态、评审 gate、多仓库现场安全仍由本文件和当
 5. 再读取 `standards/`，只用它补齐仓库规范未覆盖的部分，不反向覆盖仓库规则。
 6. 如果当前代码工作目录存在 `.codegraph/`，第一次理解或定位代码前必须先对该目录执行 `codegraph sync`，同步成功后优先使用 CodeGraph；不可用时再使用文本搜索并说明边界。
 
+## 仓库路径解析
+
+- 当前 change 已关联仓库时，以 `change.yaml.repositories` 的 `id` 和 `local_path` 为当前需求仓库清单；需要补充 Git 地址或基线时，再按 `id` 查询根 `repositories.yaml`。
+- 当前 change 尚未关联仓库或处理工作空间级仓库问题时，先读取根 `repositories.yaml`；需要绝对路径、实际分支或 HEAD 时直接执行 `devix repo list`，其 `absolute_path` 是当前工作空间的解析结果。
+- `repositories.yaml` 是工作空间已登记仓库与本地路径的事实源。禁止为了定位仓库而扫描整个 `repos/`、`IdeaProjects` 或其他上层目录，也禁止依赖旧会话、旧工作空间或仓库名猜测路径。
+- 登记中不存在目标仓库时，按用户需求通过 `devix repo add` 增加；不能绕过仓库索引直接操作偶然发现的同名目录。
+- 路径解析不依赖仓库 README 或 AGENTS。获得真实仓库路径后，才按任务需要读取 README 理解职责，并读取适用的 AGENTS 获取开发规范。
+
 ## 阶段约束
 
 - `clarification`：只整理原始需求、范围、术语、验收标准和待确认项；完成后定向读取知识库。

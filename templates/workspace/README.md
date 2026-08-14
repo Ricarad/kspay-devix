@@ -15,6 +15,8 @@ devix repo add <repo-id> --url <git-url> --base master
 devix repo list
 ```
 
+`repositories.yaml` 是本工作空间的仓库路径索引。AI 优先从当前 change 的仓库清单和该文件解析路径；需要绝对路径、实际分支或 HEAD 时使用 `devix repo list`，不扫描上层工程目录猜测仓库位置。
+
 ## 开始需求
 
 日常使用不需要手工输入 change-id、仓库或分支参数。直接把需求描述、需求文档或文档链接发给 AI，并说明“开始这个需求”。AI 会自动创建 change、读取知识、判断仓库并管理分支。

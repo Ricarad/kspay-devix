@@ -158,6 +158,11 @@ test("init creates a minimal non-Git consumer workspace without tool source dire
   for (const excluded of ["src", "bin", "test", "scripts", "docs", "templates"]) {
     assert.equal(fs.existsSync(path.join(target, excluded)), false, excluded);
   }
+  assert.equal(
+    fs.readFileSync(path.join(target, "AGENTS.md"), "utf8")
+      .includes("禁止为了定位仓库而扫描整个 `repos/`"),
+    true,
+  );
   const context = createAndActivateChange(target, "consumer-change", "Consumer Change");
   assert.equal(context.change_id, "consumer-change");
   assert.equal(fs.readdirSync(path.join(target, "changes", "consumer-change")).length, 5);
@@ -345,6 +350,7 @@ test("repo add clones the declared base branch and writes the catalog", () => {
   assert.equal(repositories[0].url, bare);
   assert.equal(repositories[0].base_branch, "main");
   assert.equal(repositories[0].cloned, true);
+  assert.equal(repositories[0].absolute_path, path.join(workspace, "repos", "source"));
   assert.throws(() => addRepository(workspace, "source", { url: bare, baseBranch: "main" }), (error) => {
     assert.equal(error.code, "REPOSITORY_EXISTS");
     return true;

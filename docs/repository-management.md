@@ -9,7 +9,9 @@
 
 消费者工作空间根目录不是 Git 仓库，也不应配置 Git 远端；`changes/`、`knowledge/`、仓库登记和 runtime 当前都只保存在本机。业务仓库保持独立 Git 历史。Devix 不使用 submodule，不自动 fetch、pull、push、stash 或 reset，也不自动提交工作空间状态文件。
 
-## 2. 仓库声明
+仓库路径优先通过索引解析，不扫描文件系统：当前需求先读 `change.yaml.repositories`，工作空间已登记仓库再读根 `repositories.yaml`；需要绝对路径和实际 Git 状态时使用 `devix repo list`。README 和 AGENTS 只在路径确定后用于理解职责和规范，不承担路径索引职责。
+
+## 2. Change 仓库声明
 
 ```yaml
 repositories:
