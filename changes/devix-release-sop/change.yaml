@@ -1,0 +1,45 @@
+schema_version: 2
+id: devix-release-sop
+title: Devix Release 文档与发布门禁
+type: feature
+owner: chenshaojie
+created_at: 2026-08-17T23:48:27.314Z
+updated_at: 2026-08-17T23:56:22.453Z
+phase: verification
+status: active
+next_action: 提交 0.5.0 并推送 GitHub main，随后记录发布结果
+sources:
+  - /Users/chenshaojie/IdeaProjects/my-devix/changes/pugongying-aigc/release.md
+resume:
+  context_summary: 用户已确认固定生成 release.md、正文按需展开，并在进入 verification 前执行条件式发布准备门禁
+  knowledge_status: not_found
+  knowledge_sources: []
+  last_paused_at: null
+  last_activated_at: 2026-08-17T23:48:27.326Z
+repositories: []
+release:
+  impact: required
+  status: ready
+  environments:
+    - staging
+    - prt
+    - prod
+  document: release.md
+gates:
+  clarification:
+    status: passed
+    reviewer: chenshaojie
+    evidence: 用户确认 Release 文档目标、环境边界和按需展开原则
+  design_review:
+    status: passed
+    reviewer: chenshaojie
+    evidence: 用户确认 schema v2、固定第六文件和条件式发布准备门禁方案
+  release_readiness:
+    status: passed
+    reviewer: chenshaojie
+    evidence: 用户明确确认实施 Release 文档、schema v2 和条件式发布门禁方案；完整测试与打包检查通过
+  verification:
+    status: pending
+    reviewer: ""
+    evidence: ""
+blockers: []

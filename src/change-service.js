@@ -1,8 +1,9 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const {
-  CORE_CHANGE_FILES,
+  CURRENT_CHANGE_SCHEMA_VERSION,
   changeDirectory,
+  coreChangeFilesForSchema,
   createChangeFiles,
   loadChange,
   loadConfig,
@@ -27,6 +28,10 @@ const { DevixError, WorkspaceConflictError } = require("./errors");
 
 const PHASES = ["clarification", "design", "implementation", "verification", "closed"];
 const STATUSES = ["active", "paused", "blocked", "done", "cancelled"];
+const RELEASE_IMPACTS = ["pending", "none", "required"];
+const RELEASE_STATUSES = ["pending", "planning", "ready", "in_progress", "completed", "not_required"];
+const RELEASE_ENVIRONMENTS = ["staging", "prt", "prod"];
+const GATE_STATUSES = ["pending", "passed", "failed", "waived"];
 const PROTECTED_BRANCHES = new Set(["main", "master"]);
 
 function now() {
@@ -217,10 +222,15 @@ function collectAgents(repoPath, modules = []) {
 function buildContext(root, change, codegraph = []) {
   const config = loadConfig(root);
   const directory = changeDirectory(root, change.id, config);
-  const core_files = CORE_CHANGE_FILES
+  const coreFiles = coreChangeFilesForSchema(change.schema_version);
+  const core_files = coreFiles
     .map((name) => path.join(directory, name))
     .filter((file) => fs.existsSync(file));
-  const optional_files = [path.join(directory, "decisions.md")].filter((file) => fs.existsSync(file));
+  const optionalFileNames = ["decisions.md"];
+  if (change.schema_version === 1) optionalFileNames.push("release.md");
+  const optional_files = optionalFileNames
+    .map((name) => path.join(directory, name))
+    .filter((file) => fs.existsSync(file));
   const knowledge_sources = (change.resume?.knowledge_sources || []).map((source) =>
     path.isAbsolute(source) ? source : path.resolve(root, source),
   );
@@ -335,7 +345,7 @@ function parseRepoSpec(root, changeId, spec) {
 function newManifest(changeId, title, repositories) {
   const timestamp = now();
   return {
-    schema_version: 1,
+    schema_version: CURRENT_CHANGE_SCHEMA_VERSION,
     id: changeId,
     title,
     type: "feature",
@@ -354,9 +364,16 @@ function newManifest(changeId, title, repositories) {
       last_activated_at: null,
     },
     repositories,
+    release: {
+      impact: "pending",
+      status: "pending",
+      environments: [...RELEASE_ENVIRONMENTS],
+      document: "release.md",
+    },
     gates: {
       clarification: { status: "pending", reviewer: "", evidence: "" },
       design_review: { status: "pending", reviewer: "", evidence: "" },
+      release_readiness: { status: "pending", reviewer: "", evidence: "" },
       verification: { status: "pending", reviewer: "", evidence: "" },
     },
     blockers: [],
@@ -438,7 +455,13 @@ function validateChange(root, changeId) {
   const change = loadChange(root, changeId, config);
   const directory = changeDirectory(root, changeId, config);
   const errors = [];
-  for (const name of CORE_CHANGE_FILES) {
+  let coreFiles = [];
+  try {
+    coreFiles = coreChangeFilesForSchema(change.schema_version);
+  } catch (error) {
+    errors.push(error.message);
+  }
+  for (const name of coreFiles) {
     if (!fs.existsSync(path.join(directory, name))) {
       errors.push(`缺少核心文件：${name}`);
     }
@@ -446,6 +469,9 @@ function validateChange(root, changeId) {
   if (!PHASES.includes(change.phase)) errors.push(`非法阶段：${change.phase}`);
   if (!STATUSES.includes(change.status)) errors.push(`非法状态：${change.status}`);
   if (change.id !== changeId) errors.push(`目录与 change.id 不一致：${change.id}`);
+  if (change.schema_version === CURRENT_CHANGE_SCHEMA_VERSION) {
+    validateReleaseState(change, errors);
+  }
   for (const repository of change.repositories || []) {
     for (const key of ["id", "local_path", "base_branch", "feature_branch"]) {
       if (!repository[key]) errors.push(`仓库 ${repository.id || "<unknown>"} 缺少 ${key}`);
@@ -458,6 +484,87 @@ function validateChange(root, changeId) {
     }
   }
   return { valid: errors.length === 0, change_id: changeId, errors };
+}
+
+function hasGateEvidence(gate) {
+  return Boolean(gate?.reviewer?.trim?.() && gate?.evidence?.trim?.());
+}
+
+function validateReleaseState(change, errors) {
+  const release = change.release || {};
+  const gate = change.gates?.release_readiness || {};
+  if (!RELEASE_IMPACTS.includes(release.impact)) errors.push(`非法 release.impact：${release.impact}`);
+  if (!RELEASE_STATUSES.includes(release.status)) errors.push(`非法 release.status：${release.status}`);
+  if (JSON.stringify(release.environments) !== JSON.stringify(RELEASE_ENVIRONMENTS)) {
+    errors.push("release.environments 必须依次为 staging、prt、prod");
+  }
+  if (release.document !== "release.md") errors.push("release.document 必须为 release.md");
+  if (!GATE_STATUSES.includes(gate.status)) errors.push(`非法 release_readiness gate：${gate.status}`);
+  if (["passed", "waived"].includes(gate.status) && !hasGateEvidence(gate)) {
+    errors.push("release_readiness gate 为 passed/waived 时必须填写 reviewer 和 evidence");
+  }
+
+  if (PHASES.indexOf(change.phase) >= PHASES.indexOf("verification")) {
+    if (release.impact === "required") {
+      if (!["ready", "in_progress", "completed"].includes(release.status) || gate.status !== "passed") {
+        errors.push("有发布影响的 change 进入 verification 后必须通过发布准备门禁并处于 ready/in_progress/completed");
+      }
+    } else if (release.impact === "none") {
+      if (release.status !== "not_required" || gate.status !== "waived") {
+        errors.push("无发布影响的 change 进入 verification 后必须标记 not_required 并豁免发布准备门禁");
+      }
+    } else {
+      errors.push("进入 verification 前必须确定 release.impact");
+    }
+  }
+  if (change.phase === "closed" && release.impact === "required" && release.status !== "completed") {
+    errors.push("有发布影响的 change 关闭前必须完成发布及上线后事项");
+  }
+}
+
+function assertReleaseReadiness(change) {
+  if (change.schema_version === 1) return;
+  if (change.schema_version !== CURRENT_CHANGE_SCHEMA_VERSION) {
+    throw new DevixError("CHANGE_SCHEMA_UNSUPPORTED", `不支持的 change schema_version：${change.schema_version}`);
+  }
+  const release = change.release || {};
+  const gate = change.gates?.release_readiness || {};
+  if (release.impact === "required") {
+    if (release.status !== "ready" || gate.status !== "passed" || !hasGateEvidence(gate)) {
+      throw new DevixError(
+        "RELEASE_READINESS_PENDING",
+        "有发布影响的 change 进入 verification 前必须设置 release.status=ready，并由确认人通过 release_readiness gate",
+      );
+    }
+    return;
+  }
+  if (release.impact === "none") {
+    if (release.status !== "not_required" || gate.status !== "waived" || !hasGateEvidence(gate)) {
+      throw new DevixError(
+        "RELEASE_READINESS_PENDING",
+        "无发布影响的 change 进入 verification 前必须设置 release.status=not_required，并由确认人豁免 release_readiness gate",
+      );
+    }
+    return;
+  }
+  throw new DevixError("RELEASE_IMPACT_PENDING", "进入 verification 前必须确定 release.impact 为 required 或 none");
+}
+
+function assertReleaseCompleted(change) {
+  if (change.schema_version === 1) return;
+  if (change.schema_version !== CURRENT_CHANGE_SCHEMA_VERSION) {
+    throw new DevixError("CHANGE_SCHEMA_UNSUPPORTED", `不支持的 change schema_version：${change.schema_version}`);
+  }
+  const release = change.release || {};
+  if (release.impact === "required" && release.status !== "completed") {
+    throw new DevixError("RELEASE_INCOMPLETE", "有发布影响的 change 关闭前必须完成发布及上线后事项");
+  }
+  if (release.impact === "none" && release.status !== "not_required") {
+    throw new DevixError("RELEASE_STATE_INVALID", "无发布影响的 change 关闭时必须保持 release.status=not_required");
+  }
+  if (!RELEASE_IMPACTS.includes(release.impact) || release.impact === "pending") {
+    throw new DevixError("RELEASE_IMPACT_PENDING", "关闭 change 前必须确定 release.impact");
+  }
 }
 
 function advanceChange(root, changeId, targetPhase) {
@@ -478,9 +585,11 @@ function advanceChange(root, changeId, targetPhase) {
   if (targetPhase === "implementation" && change.gates?.design_review?.status !== "passed") {
     throw new DevixError("GATE_PENDING", "技术方案评审 gate 尚未通过");
   }
+  if (targetPhase === "verification") assertReleaseReadiness(change);
   if (targetPhase === "closed" && change.gates?.verification?.status !== "passed") {
     throw new DevixError("GATE_PENDING", "验证 gate 尚未通过");
   }
+  if (targetPhase === "closed") assertReleaseCompleted(change);
   change.phase = targetPhase;
   if (targetPhase === "closed") change.status = "done";
   saveChange(root, change);
@@ -517,6 +626,9 @@ function changeStatus(root, changeId = null) {
 
 module.exports = {
   PHASES,
+  RELEASE_ENVIRONMENTS,
+  RELEASE_IMPACTS,
+  RELEASE_STATUSES,
   STATUSES,
   activateChange,
   addRepositories,

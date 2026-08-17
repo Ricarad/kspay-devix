@@ -8,6 +8,7 @@ const YAML = require("yaml");
 const {
   addRepositories,
   advanceChange,
+  buildContext,
   createAndActivateChange,
   newManifest,
   pauseChange,
@@ -129,16 +130,41 @@ function installFailingCodeGraph(root) {
   return binDir;
 }
 
-test("new creates exactly five core files and activates the change", () => {
+test("new creates six schema v2 core files and activates the change", () => {
   const root = makeWorkspace();
   const context = createAndActivateChange(root, "new-feature", "New Feature");
   const files = fs.readdirSync(path.join(root, "changes", "new-feature")).sort();
-  assert.deepEqual(files, ["README.md", "change.yaml", "design.md", "tasks.md", "verification.md"]);
+  assert.deepEqual(files, ["README.md", "change.yaml", "design.md", "release.md", "tasks.md", "verification.md"]);
   assert.equal(loadRuntimeState(root).active_change_id, "new-feature");
   assert.equal(context.phase, "clarification");
+  assert.equal(loadChange(root, "new-feature").schema_version, 2);
+  assert.equal(loadChange(root, "new-feature").release.impact, "pending");
+  assert.ok(context.core_files.includes(path.join(root, "changes", "new-feature", "release.md")));
   const changeReadme = fs.readFileSync(path.join(root, "changes", "new-feature", "README.md"), "utf8");
   assert.equal(changeReadme.includes("## 事实落档与恢复规则"), true);
   assert.equal(changeReadme.includes("禁止使用任何跨会话 memory"), true);
+  const releaseTemplate = fs.readFileSync(path.join(root, "changes", "new-feature", "release.md"), "utf8");
+  for (const irrelevantHeading of ["Kconf", "Kconfig", "Redis", "Task", "RPC"]) {
+    assert.equal(releaseTemplate.includes(irrelevantHeading), false, irrelevantHeading);
+  }
+});
+
+test("schema v1 keeps five core files and surfaces an existing release as optional", () => {
+  const root = makeWorkspace();
+  const manifest = { ...newManifest("legacy", "Legacy", []), schema_version: 1 };
+  delete manifest.release;
+  delete manifest.gates.release_readiness;
+  createChangeFiles(root, "legacy", "Legacy", manifest);
+
+  assert.deepEqual(
+    fs.readdirSync(path.join(root, "changes", "legacy")).sort(),
+    ["README.md", "change.yaml", "design.md", "tasks.md", "verification.md"],
+  );
+  assert.equal(validateChange(root, "legacy").valid, true);
+  write(path.join(root, "changes", "legacy", "release.md"), "# Legacy Release\n");
+  const context = buildContext(root, loadChange(root, "legacy"));
+  assert.ok(context.optional_files.includes(path.join(root, "changes", "legacy", "release.md")));
+  assert.equal(context.core_files.includes(path.join(root, "changes", "legacy", "release.md")), false);
 });
 
 test("init creates a minimal non-Git consumer workspace without tool source directories", () => {
@@ -165,7 +191,7 @@ test("init creates a minimal non-Git consumer workspace without tool source dire
   );
   const context = createAndActivateChange(target, "consumer-change", "Consumer Change");
   assert.equal(context.change_id, "consumer-change");
-  assert.equal(fs.readdirSync(path.join(target, "changes", "consumer-change")).length, 5);
+  assert.equal(fs.readdirSync(path.join(target, "changes", "consumer-change")).length, 6);
   assert.equal(
     fs.readFileSync(path.join(target, "changes", "consumer-change", "README.md"), "utf8")
       .includes("## 事实落档与恢复规则"),
@@ -219,7 +245,7 @@ test("update syncs only platform-managed files without committing consumer state
   write(path.join(publisher, "AGENTS.md"), publishedAgents);
   write(path.join(publisher, "standards", "README.md"), "# published standards\n");
   write(path.join(publisher, "standards", "new-rule.md"), "# new rule\n");
-  for (const fileName of ["change.yaml", "README.md", "design.md", "tasks.md", "verification.md"]) {
+  for (const fileName of ["change.yaml", "README.md", "design.md", "tasks.md", "release.md", "verification.md"]) {
     write(path.join(publisher, "templates", "change", fileName), `${fileName} published template\n`);
   }
   write(path.join(publisher, "changes", "must-not-copy.md"), "publisher change\n");
@@ -245,6 +271,10 @@ test("update syncs only platform-managed files without committing consumer state
   assert.equal(
     fs.readFileSync(path.join(workspace, ".devix", "templates", "change", "README.md"), "utf8"),
     "README.md published template\n",
+  );
+  assert.equal(
+    fs.readFileSync(path.join(workspace, ".devix", "templates", "change", "release.md"), "utf8"),
+    "release.md published template\n",
   );
   assert.equal(fs.readFileSync(path.join(workspace, "changes", "consumer.md"), "utf8"), "consumer change\n");
   assert.equal(fs.existsSync(path.join(workspace, "changes", "must-not-copy.md")), false);
@@ -615,6 +645,72 @@ test("design transition requires clarification gate and knowledge status", () =>
   saveChange(root, change);
   assert.equal(advanceChange(root, "change-a", "design").phase, "design");
   assert.equal(validateChange(root, "change-a").valid, true);
+});
+
+test("verification transition requires a confirmed conditional release gate", () => {
+  const requiredRoot = makeWorkspace();
+  createChange(requiredRoot, "required-release", [], { phase: "implementation" });
+  assert.throws(
+    () => advanceChange(requiredRoot, "required-release", "verification"),
+    (error) => error.code === "RELEASE_IMPACT_PENDING",
+  );
+  let required = loadChange(requiredRoot, "required-release");
+  required.resume.knowledge_status = "not_found";
+  required.release.impact = "required";
+  required.release.status = "ready";
+  required.gates.release_readiness = {
+    status: "passed",
+    reviewer: "release-owner",
+    evidence: "release.md reviewed",
+  };
+  saveChange(requiredRoot, required);
+  assert.equal(advanceChange(requiredRoot, "required-release", "verification").phase, "verification");
+  assert.equal(validateChange(requiredRoot, "required-release").valid, true);
+
+  const noImpactRoot = makeWorkspace();
+  createChange(noImpactRoot, "no-release", [], { phase: "implementation" });
+  const noImpact = loadChange(noImpactRoot, "no-release");
+  noImpact.resume.knowledge_status = "not_found";
+  noImpact.release.impact = "none";
+  noImpact.release.status = "not_required";
+  noImpact.gates.release_readiness = {
+    status: "waived",
+    reviewer: "release-owner",
+    evidence: "no deployment or configuration impact",
+  };
+  saveChange(noImpactRoot, noImpact);
+  assert.equal(advanceChange(noImpactRoot, "no-release", "verification").phase, "verification");
+  assert.equal(validateChange(noImpactRoot, "no-release").valid, true);
+});
+
+test("required release must complete post-release actions before closing", () => {
+  const root = makeWorkspace();
+  createChange(root, "release-close", [], { phase: "verification" });
+  let change = loadChange(root, "release-close");
+  change.resume.knowledge_status = "not_found";
+  change.release.impact = "required";
+  change.release.status = "in_progress";
+  change.gates.release_readiness = {
+    status: "passed",
+    reviewer: "release-owner",
+    evidence: "release plan approved",
+  };
+  change.gates.verification = {
+    status: "passed",
+    reviewer: "test-owner",
+    evidence: "verification passed",
+  };
+  saveChange(root, change);
+
+  assert.throws(
+    () => advanceChange(root, "release-close", "closed"),
+    (error) => error.code === "RELEASE_INCOMPLETE",
+  );
+  change = loadChange(root, "release-close");
+  change.release.status = "completed";
+  saveChange(root, change);
+  assert.equal(advanceChange(root, "release-close", "closed").status, "done");
+  assert.equal(validateChange(root, "release-close").valid, true);
 });
 
 function currentBranch(repoPath) {

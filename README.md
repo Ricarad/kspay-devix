@@ -23,17 +23,18 @@ kspay-devix/
 
 使用者只需把需求描述、需求文档或文档链接发给 AI，并说明“开始这个需求”，不需要填写 change-id、仓库或分支参数。AI 内部执行：
 
-1. 从内容生成 change-id 和标题，保存当前 active change 并创建五文件规格包。
+1. 从内容生成 change-id 和标题，保存当前 active change 并创建六文件规格包。
 2. 在 `clarification` 整理原始输入、范围和验收标准，进入设计前定向读取知识库。
 3. 从 `repositories.yaml` 和代码现状判断影响仓库，自动关联 feature branch。
 4. 在 `design` 完成 CodeGraph/代码勘察、技术方案和任务拆解。
-5. 方案通过评审后进入 `implementation`，最后在 `verification` 留下证据并关闭。
+5. 方案通过评审后进入 `implementation`，在进入 `verification` 前确认发布准备，最后留下验证与发布证据并关闭。
 
 完整规则见 [`docs/workflow.md`](./docs/workflow.md)，多仓库与分支规则见 [`docs/repository-management.md`](./docs/repository-management.md)。
 
 ## 核心原则
 
 - `change.yaml` 是阶段、仓库分支、阻塞项和下一步动作的机器可读事实源。
+- `release.md` 是远程配置、环境差异、上线前后 SOP、监控和回滚的事实源，只展开实际涉及的组件。
 - Markdown 负责完整分析、方案和评审依据，不重复充当另一套状态机。
 - 当前 change 的事实必须立即落入对应规格文件并清理冲突旧描述，禁止使用跨会话 memory 中转、备份或恢复需求与技术方案。
 - 仓库路径先从 `change.yaml.repositories` 和根 `repositories.yaml` 解析；需要绝对路径时使用 `devix repo list`，不扫描上层工程目录或依赖旧路径猜测。

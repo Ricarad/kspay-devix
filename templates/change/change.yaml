@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 id: replace-with-change-id
 title: 替换为需求名称
 type: feature
@@ -31,12 +31,25 @@ repositories:
     last_known_head: ""
     snapshot: null
 
+release:
+  impact: pending
+  status: pending
+  environments:
+    - staging
+    - prt
+    - prod
+  document: release.md
+
 gates:
   clarification:
     status: pending
     reviewer: ""
     evidence: ""
   design_review:
+    status: pending
+    reviewer: ""
+    evidence: ""
+  release_readiness:
     status: pending
     reviewer: ""
     evidence: ""

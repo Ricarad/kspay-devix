@@ -27,6 +27,8 @@ gates:
     - knowledge
   before_implementation:
     - design_review
+  before_verification:
+    - release_readiness
   before_closed:
     - verification
 

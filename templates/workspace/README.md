@@ -21,6 +21,8 @@ devix repo list
 
 日常使用不需要手工输入 change-id、仓库或分支参数。直接把需求描述、需求文档或文档链接发给 AI，并说明“开始这个需求”。AI 会自动创建 change、读取知识、判断仓库并管理分支。
 
+新 change 会固定生成 `release.md`，用于记录实际涉及的远程配置、Staging/PRT/Prod 差异以及上线前后 SOP；未涉及的组件不会生成空章节。
+
 下面的 CLI 只用于调试或人工接管：
 
 ```bash

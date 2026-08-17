@@ -13,7 +13,7 @@ Devix 的需求状态、评审 gate、多仓库现场安全仍由本文件和当
 ## 开始任何需求前
 
 1. 若 `.devix/runtime/workspace-state.yaml` 存在，读取它确认当前激活的 change，并核对唯一的 `changes/<change-id>/change.yaml`；不存在表示尚未激活 change。
-2. 读取该需求的 `README.md`、`design.md`、`tasks.md`、`verification.md`，以及存在时的 `decisions.md`。
+2. 读取该需求的 `README.md`、`design.md`、`tasks.md`、`release.md`、`verification.md`，以及存在时的 `decisions.md`。旧 schema v1 没有 `release.md` 时按兼容规则处理。
 3. 读取 `change.yaml.repositories` 涉及的仓库清单，不凭目录名猜测影响仓库。
 4. 对每个涉及的仓库，先读取仓库根目录及目标模块沿途适用的全部 `AGENTS.md`，整理仓库特定的代码、构建和测试要求。
 5. 再读取 `standards/`，只用它补齐仓库规范未覆盖的部分，不反向覆盖仓库规则。
@@ -29,10 +29,10 @@ Devix 的需求状态、评审 gate、多仓库现场安全仍由本文件和当
 
 ## 阶段约束
 
-- `clarification`：只整理原始需求、范围、术语、验收标准和待确认项；完成后定向读取知识库。
-- `design`：允许只读代码勘察，记录真实调用链、影响仓库和未验证假设，更新技术方案与任务拆解；不得开始工程实现或构建，除非用户明确要求验证性原型。
+- `clarification`：只整理原始需求、范围、术语、验收标准和待确认项，初步判断发布影响；完成后定向读取知识库。
+- `design`：允许只读代码勘察，记录真实调用链、影响仓库和未验证假设，更新技术方案、任务拆解以及实际涉及的发布配置与 SOP；不得开始工程实现或构建，除非用户明确要求验证性原型。
 - `implementation`：只有需求澄清、知识读取和技术方案评审 gate 通过后才能修改业务代码。
-- `verification`：按验证计划提供单测、联调、回归、发布命令和结果证据，不能把“未运行”写成“通过”。
+- `verification`：进入前必须完成条件式 release_readiness gate；按验证计划提供单测、联调、回归和结果证据，并在发布过程中持续更新 `release.md`，不能把“未运行”写成“通过”。
 - `closed`：验证 gate 通过，恢复摘要和可复用知识已经收口。
 
 AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 gate 标记为 `passed`。用户明确确认后，才同步更新 `change.yaml` 与 `decisions.md`。
@@ -71,20 +71,30 @@ AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 g
 - `design.md`：基于真实代码路径的技术方案、数据/接口/兼容/回滚设计。
 - `decisions.md`（可选）：复杂需求已经确认的选择、负责人、日期和依据；假设不能伪装成决策。
 - `tasks.md`：可执行任务、依赖、状态和验证方式。
-- `verification.md`：测试矩阵、命令、环境、结果、发布证据与未覆盖项。
+- `release.md`：实际涉及的发布配置、Staging/PRT/Prod 差异、上线前后 SOP、监控、回滚与发布记录。
+- `verification.md`：测试矩阵、命令、环境、验收结果与未覆盖项；通过链接引用发布证据，不复制 `release.md` 正文。
 
 同一事实出现冲突时，先停止推进并显式消歧，不能静默选择对自己方便的版本。
 
 ## Change 事实落档与跨会话恢复
 
-- 当前 change 的事实必须落在该 change 的正式文件中：需求与验收变化写入 `README.md`，技术链路、接口和实现方案变化写入 `design.md`，已确认的关键取舍写入 `decisions.md`，任务状态、阻塞和下一步写入 `tasks.md`，阶段、状态、仓库分支和恢复摘要写入 `change.yaml`，测试与交付证据写入 `verification.md`。
+- 当前 change 的事实必须落在该 change 的正式文件中：需求与验收变化写入 `README.md`，技术链路、接口和实现方案变化写入 `design.md`，已确认的关键取舍写入 `decisions.md`，任务状态、阻塞和下一步写入 `tasks.md`，发布配置与上线 SOP 写入 `release.md`，阶段、状态、仓库分支和恢复摘要写入 `change.yaml`，测试与验收证据写入 `verification.md`。
 - 未确认的方案只能在 `README.md` 或 `design.md` 中标记为假设或待确认项，不能提前写成 `decisions.md` 中的已确认决策。
 - 用户确认方案或代码事实发生变化后，必须先更新全部受影响的 change 文件并清理相互冲突的旧描述，再继续编码、验证或切换任务；不能只追加新结论而保留已经失效的旧方案。
 - `change.yaml.resume.context_summary` 只保存简洁的恢复摘要和文档入口，不能承载完整方案，也不能替代 `README.md`、`design.md`、`decisions.md` 或 `tasks.md`。
 - 当前 change 完全禁止写入、更新、查询或依赖任何跨会话 memory；memory 不能作为临时中转、正文备份、事实来源或恢复入口，也不得建议用户“先存 memory 再开新会话”。
 - `knowledge/` 只沉淀已经验证、与单一 change 无关且可跨需求复用的知识，不能代替当前 change 的事实落档。
-- 在预计上下文压缩、准备新会话、暂停或切换 change、工作交接以及结束当前工作前，必须检查 `change.yaml`、五个核心文件和存在时的 `decisions.md` 是否一致，确保阶段、下一步、阻塞、任务状态、方案与验证证据互相匹配。
+- 在预计上下文压缩、准备新会话、暂停或切换 change、工作交接以及结束当前工作前，必须检查 `change.yaml`、当前 schema 的核心文件和存在时的 `decisions.md` 是否一致，确保阶段、下一步、阻塞、任务状态、方案、发布准备与验证证据互相匹配。
 - 新会话恢复当前 change 时只以该 change 的正式文件、其登记的知识来源和当前代码事实为依据。发现文件之间存在冲突时先停止开发并消歧，不得用旧会话或 memory 静默补全。
+
+## Release 文档与发布门禁
+
+- schema v2 的每个 change 固定包含 `release.md`，但正文必须按实际影响面展开。没有 RPC、Task、Redis 或其他组件变更时，不得生成相应标题、空表格或“不涉及”占位章节。
+- 无发布影响时，`release.md` 只保留影响结论、判断依据和确认状态，并将 `release.impact/status` 设置为 `none/not_required`；release_readiness gate 由用户或发布负责人明确 `waived`。
+- 有发布影响时，按 [`standards/release.md`](./standards/release.md) 记录 Staging、PRT、Prod 的差异，以及部署前、部署中、部署后、验证后的动作、负责人、证据和回滚。
+- 进入 verification 前，有发布影响的 change 必须达到 `required/ready` 且 release_readiness gate 为 `passed`；无发布影响必须达到 `none/not_required` 且 gate 为 `waived`。passed/waived 都必须记录 reviewer 和 evidence，AI 不自行批准。
+- 编码中出现配置字段、TTL、RPC 契约、任务启停、发布顺序、临时日志或回滚变化时，先更新 `release.md` 并清理失效内容，再继续编码或验证。
+- 有发布影响的 change 只有在上线后监控、清理和延迟动作完成且 `release.status: completed` 后才能进入 closed。
 
 ## 代码生成
 

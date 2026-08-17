@@ -3,13 +3,28 @@ const path = require("node:path");
 const YAML = require("yaml");
 const { DevixError } = require("./errors");
 
-const CORE_CHANGE_FILES = [
+const CURRENT_CHANGE_SCHEMA_VERSION = 2;
+const LEGACY_CORE_CHANGE_FILES = [
   "change.yaml",
   "README.md",
   "design.md",
   "tasks.md",
   "verification.md",
 ];
+const CORE_CHANGE_FILES = [
+  "change.yaml",
+  "README.md",
+  "design.md",
+  "tasks.md",
+  "release.md",
+  "verification.md",
+];
+
+function coreChangeFilesForSchema(schemaVersion) {
+  if (schemaVersion === 1) return LEGACY_CORE_CHANGE_FILES;
+  if (schemaVersion === CURRENT_CHANGE_SCHEMA_VERSION) return CORE_CHANGE_FILES;
+  throw new DevixError("CHANGE_SCHEMA_UNSUPPORTED", `不支持的 change schema_version：${schemaVersion}`);
+}
 
 function findWorkspace(startPath = process.cwd()) {
   let current = path.resolve(startPath);
@@ -120,7 +135,8 @@ function createChangeFiles(root, changeId, title, manifest, config = loadConfig(
     "替换为需求名称": title,
     "# 需求名称": `# ${title}`,
   };
-  for (const fileName of CORE_CHANGE_FILES.filter((name) => name !== "change.yaml")) {
+  const coreFiles = coreChangeFilesForSchema(manifest.schema_version);
+  for (const fileName of coreFiles.filter((name) => name !== "change.yaml")) {
     const source = path.join(templateDir, fileName);
     if (!fs.existsSync(source)) {
       throw new DevixError("TEMPLATE_INVALID", `模板缺少文件：${source}`);
@@ -135,9 +151,12 @@ function createChangeFiles(root, changeId, title, manifest, config = loadConfig(
 }
 
 module.exports = {
+  CURRENT_CHANGE_SCHEMA_VERSION,
   CORE_CHANGE_FILES,
+  LEGACY_CORE_CHANGE_FILES,
   changeDirectory,
   changeFile,
+  coreChangeFilesForSchema,
   createChangeFiles,
   findWorkspace,
   loadChange,

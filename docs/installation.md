@@ -136,7 +136,7 @@ devix repo add kspay-promo \
 
 1. 从内容生成 change-id 和标题。
 2. 检查并保存当前 active change。
-3. 创建五文件 change，登记原始文档路径/链接并整理需求。
+3. 创建六文件 change，登记原始文档路径/链接并整理需求与发布影响。
 4. 在澄清后读取 knowledge 和 `repositories.yaml`。
 5. 判断影响仓库，内部执行 repo-add、切换 feature branch 和 CodeGraph sync。
 6. 只有关键需求歧义或 Git 现场偏差时才请求确认。
