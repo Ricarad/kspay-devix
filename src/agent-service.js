@@ -24,6 +24,61 @@ function copyPlugin(source, target) {
   fs.cpSync(source, target, { recursive: true });
 }
 
+function runMyflicker(args, details = {}) {
+  const result = spawnSync("myflicker", args, { encoding: "utf8" });
+  if (result.status !== 0) {
+    throw new DevixError("MYFLICKER_PLUGIN_INSTALL_FAILED", `MyFlicker 命令失败：myflicker ${args.join(" ")}`, {
+      ...details,
+      status: result.status,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    });
+  }
+  return result.stdout;
+}
+
+function myflickerMarketplaceState() {
+  try {
+    return JSON.parse(runMyflicker(["plugin", "marketplace", "list", "--json"]));
+  } catch (error) {
+    if (error instanceof DevixError) throw error;
+    return [];
+  }
+}
+
+function myflickerPluginState() {
+  try {
+    return JSON.parse(runMyflicker(["plugin", "list", "--json"]));
+  } catch (error) {
+    if (error instanceof DevixError) throw error;
+    return { installed: [] };
+  }
+}
+
+function installMyflickerPlugin(source, home, options = {}) {
+  const persistentSource = path.join(home, ".devix", "plugins", "kspay-devix-myflicker");
+  copyPlugin(source, persistentSource);
+  if (options.executeClient === false) {
+    return { path: persistentSource, marketplace: "kspay-devix", plugin: "kspay-devix-myflicker", registration: "deferred" };
+  }
+  if (!commandExists("myflicker")) {
+    throw new DevixError("AGENT_CLIENT_NOT_FOUND", "未找到 myflicker，无法注册 MyFlicker 插件");
+  }
+  const marketplaces = myflickerMarketplaceState();
+  const known = marketplaces.find((marketplace) => marketplace.name === "kspay-devix");
+  if (known) runMyflicker(["plugin", "marketplace", "update", "kspay-devix"]);
+  else runMyflicker(["plugin", "marketplace", "add", persistentSource, "--scope", "user"]);
+
+  const installed = myflickerPluginState().installed || [];
+  const pluginRef = "kspay-devix-myflicker@kspay-devix";
+  if (installed.some((plugin) => plugin.name === "kspay-devix-myflicker" && plugin.marketplace === "kspay-devix")) {
+    runMyflicker(["plugin", "update", pluginRef]);
+  } else {
+    runMyflicker(["plugin", "install", pluginRef, "--scope", "user"]);
+  }
+  return { path: persistentSource, marketplace: "kspay-devix", plugin: "kspay-devix-myflicker", registration: "installed" };
+}
+
 function updateCodexMarketplace(home, pluginPath) {
   const marketplacePath = path.join(home, ".agents", "plugins", "marketplace.json");
   fs.mkdirSync(path.dirname(marketplacePath), { recursive: true });
@@ -63,9 +118,7 @@ function installAgents(options = {}) {
     installed.push({ client: "codex", path: target, marketplace });
   }
   if (selected.includes("myflicker")) {
-    const target = path.join(home, ".codeflicker", "plugins", "kspay-devix");
-    copyPlugin(myflickerSource, target);
-    installed.push({ client: "myflicker", path: target });
+    installed.push({ client: "myflicker", ...installMyflickerPlugin(myflickerSource, home, options) });
   }
   return { installed, skipped, source: sourceRoot, ref: options.ref || "working-tree" };
 }

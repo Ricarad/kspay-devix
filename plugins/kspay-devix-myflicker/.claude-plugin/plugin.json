@@ -1,7 +1,8 @@
 {
   "name": "kspay-devix-myflicker",
   "description": "Devix structured change workflow for MyFlicker",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "main": "plugin.js",
   "author": {
     "name": "KSPay Devix"
   }

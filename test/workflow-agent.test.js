@@ -55,13 +55,16 @@ test("delta revision blocks implementation until explicit confirmation", () => {
 test("agent install is idempotent and writes both client adapters", () => {
   const root = workspace();
   const home = path.join(root, "home");
-  const result = installAgents({ target: "all", home, source: path.resolve(__dirname, "..") });
+  const result = installAgents({ target: "all", home, source: path.resolve(__dirname, ".."), executeClient: false });
   assert.equal(result.installed.length, 2);
   assert.equal(fs.existsSync(path.join(home, "plugins", "kspay-devix-codex", ".codex-plugin", "plugin.json")), true);
-  assert.equal(fs.existsSync(path.join(home, ".codeflicker", "plugins", "kspay-devix", "plugin.js")), true);
+  assert.equal(fs.existsSync(path.join(home, ".devix", "plugins", "kspay-devix-myflicker", "plugin.js")), true);
+  const myflickerManifest = JSON.parse(fs.readFileSync(path.join(home, ".devix", "plugins", "kspay-devix-myflicker", ".claude-plugin", "plugin.json"), "utf8"));
+  assert.equal(myflickerManifest.main, "plugin.js");
+  assert.equal(fs.existsSync(path.join(home, ".devix", "plugins", "kspay-devix-myflicker", ".claude-plugin", "marketplace.json")), true);
   const marketplace = JSON.parse(fs.readFileSync(result.installed[0].marketplace, "utf8"));
   assert.equal(marketplace.plugins[0].name, "kspay-devix-codex");
-  const second = installAgents({ target: "codex", home, source: path.resolve(__dirname, "..") });
+  const second = installAgents({ target: "codex", home, source: path.resolve(__dirname, ".."), executeClient: false });
   assert.equal(second.installed.length, 1);
   assert.equal(JSON.parse(fs.readFileSync(result.installed[0].marketplace, "utf8")).plugins.length, 1);
 });

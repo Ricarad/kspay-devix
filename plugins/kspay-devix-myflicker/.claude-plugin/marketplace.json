@@ -1,0 +1,14 @@
+{
+  "name": "kspay-devix",
+  "description": "Devix structured workflow for MyFlicker",
+  "owner": {
+    "name": "KSPay Devix"
+  },
+  "plugins": [
+    {
+      "name": "kspay-devix-myflicker",
+      "description": "Devix structured change workflow for MyFlicker",
+      "source": "./"
+    }
+  ]
+}
