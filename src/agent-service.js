@@ -37,6 +37,19 @@ function runMyflicker(args, details = {}) {
   return result.stdout;
 }
 
+function runCodex(args, details = {}) {
+  const result = spawnSync("codex", args, { encoding: "utf8" });
+  if (result.status !== 0) {
+    throw new DevixError("CODEX_PLUGIN_INSTALL_FAILED", `Codex 命令失败：codex ${args.join(" ")}`, {
+      ...details,
+      status: result.status,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    });
+  }
+  return result.stdout;
+}
+
 function myflickerMarketplaceState() {
   try {
     return JSON.parse(runMyflicker(["plugin", "marketplace", "list", "--json"]));
@@ -115,7 +128,13 @@ function installAgents(options = {}) {
     const target = path.join(home, "plugins", "kspay-devix-codex");
     copyPlugin(codexSource, target);
     const marketplace = updateCodexMarketplace(home, "./plugins/kspay-devix-codex");
-    installed.push({ client: "codex", path: target, marketplace });
+    if (options.executeClient === false) {
+      installed.push({ client: "codex", path: target, marketplace, registration: "deferred" });
+    } else {
+      if (!commandExists("codex")) throw new DevixError("AGENT_CLIENT_NOT_FOUND", "未找到 codex，无法安装 Codex 插件");
+      runCodex(["plugin", "add", "kspay-devix-codex@personal", "--json"]);
+      installed.push({ client: "codex", path: target, marketplace, registration: "installed" });
+    }
   }
   if (selected.includes("myflicker")) {
     installed.push({ client: "myflicker", ...installMyflickerPlugin(myflickerSource, home, options) });

@@ -57,6 +57,7 @@ test("agent install is idempotent and writes both client adapters", () => {
   const home = path.join(root, "home");
   const result = installAgents({ target: "all", home, source: path.resolve(__dirname, ".."), executeClient: false });
   assert.equal(result.installed.length, 2);
+  assert.equal(result.installed.every((entry) => entry.registration === "deferred"), true);
   assert.equal(fs.existsSync(path.join(home, "plugins", "kspay-devix-codex", ".codex-plugin", "plugin.json")), true);
   assert.equal(fs.existsSync(path.join(home, ".devix", "plugins", "kspay-devix-myflicker", "plugin.js")), true);
   const myflickerManifest = JSON.parse(fs.readFileSync(path.join(home, ".devix", "plugins", "kspay-devix-myflicker", ".claude-plugin", "plugin.json"), "utf8"));

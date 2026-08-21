@@ -1,7 +1,7 @@
 {
   "name": "kspay-devix-codex",
   "description": "Devix structured change workflow for Codex",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": {
     "name": "KSPay Devix"
   },
