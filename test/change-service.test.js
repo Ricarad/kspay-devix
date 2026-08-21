@@ -181,6 +181,11 @@ test("init creates a minimal non-Git consumer workspace without tool source dire
   for (const required of ["AGENTS.md", "README.md", "devix.yaml", "repositories.yaml", "changes", "knowledge", "standards", "repos", ".devix"]) {
     assert.equal(fs.existsSync(path.join(target, required)), true, required);
   }
+  for (const command of ["devix-analyze", "devix-design", "devix-code", "devix-test", "devix-close", "devix-status"]) {
+    const commandFile = path.join(target, ".codeflicker", "commands", `${command}.md`);
+    assert.equal(fs.existsSync(commandFile), true, command);
+    assert.match(fs.readFileSync(commandFile, "utf8"), new RegExp(`/${command}`));
+  }
   for (const excluded of ["src", "bin", "test", "scripts", "docs", "templates"]) {
     assert.equal(fs.existsSync(path.join(target, excluded)), false, excluded);
   }
@@ -248,11 +253,15 @@ test("update syncs only platform-managed files without committing consumer state
   for (const fileName of ["change.yaml", "README.md", "design.md", "tasks.md", "release.md", "verification.md"]) {
     write(path.join(publisher, "templates", "change", fileName), `${fileName} published template\n`);
   }
+  for (const fileName of ["devix-analyze.md", "devix-design.md", "devix-code.md", "devix-test.md", "devix-close.md", "devix-status.md"]) {
+    write(path.join(publisher, "templates", "commands", fileName), `${fileName} published command\n`);
+  }
   write(path.join(publisher, "changes", "must-not-copy.md"), "publisher change\n");
   git(publisher, ["add", "-A"]);
   git(publisher, ["commit", "-m", "publish rules"]);
 
   initializeWorkspace(workspace, { branch: "main" });
+  write(path.join(workspace, ".codeflicker", "commands", "my-custom.md"), "consumer custom command\n");
   write(path.join(workspace, "AGENTS.md"), "# local agents\n");
   write(path.join(workspace, "changes", "consumer.md"), "consumer change\n");
   write(path.join(workspace, "knowledge", "README.md"), "consumer knowledge\n");
@@ -275,6 +284,15 @@ test("update syncs only platform-managed files without committing consumer state
   assert.equal(
     fs.readFileSync(path.join(workspace, ".devix", "templates", "change", "release.md"), "utf8"),
     "release.md published template\n",
+  );
+  assert.equal(
+    fs.readFileSync(path.join(workspace, ".codeflicker", "commands", "devix-code.md"), "utf8"),
+    "devix-code.md published command\n",
+  );
+  assert.equal(result.managed_paths.includes(".codeflicker/commands/"), true);
+  assert.equal(
+    fs.readFileSync(path.join(workspace, ".codeflicker", "commands", "my-custom.md"), "utf8"),
+    "consumer custom command\n",
   );
   assert.equal(fs.readFileSync(path.join(workspace, "changes", "consumer.md"), "utf8"), "consumer change\n");
   assert.equal(fs.existsSync(path.join(workspace, "changes", "must-not-copy.md")), false);

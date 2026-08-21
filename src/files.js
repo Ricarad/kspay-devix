@@ -19,6 +19,14 @@ const CORE_CHANGE_FILES = [
   "release.md",
   "verification.md",
 ];
+const DEVIX_COMMAND_FILES = [
+  "devix-analyze.md",
+  "devix-design.md",
+  "devix-code.md",
+  "devix-test.md",
+  "devix-close.md",
+  "devix-status.md",
+];
 
 function coreChangeFilesForSchema(schemaVersion) {
   if (schemaVersion === 1) return LEGACY_CORE_CHANGE_FILES;
@@ -162,6 +170,7 @@ function createChangeFiles(root, changeId, title, manifest, config = loadConfig(
 module.exports = {
   CURRENT_CHANGE_SCHEMA_VERSION,
   CORE_CHANGE_FILES,
+  DEVIX_COMMAND_FILES,
   LEGACY_CORE_CHANGE_FILES,
   changeDirectory,
   changeFile,

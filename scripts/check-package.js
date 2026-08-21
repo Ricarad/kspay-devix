@@ -43,7 +43,7 @@ if (leaked.length > 0) {
   process.exit(1);
 }
 
-for (const required of ["bin/devix.js", "src/cli.js", "src/update-service.js", "src/toolchain-service.js", "templates/workspace/README.md"]) {
+for (const required of ["bin/devix.js", "src/cli.js", "src/update-service.js", "src/toolchain-service.js", "templates/workspace/README.md", "templates/commands/devix-analyze.md"]) {
   if (!files.includes(required)) {
     process.stderr.write(`PACKAGE_MISSING_RUNTIME_FILE ${required}\n`);
     process.exit(1);

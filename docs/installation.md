@@ -52,9 +52,9 @@ npm install -g ~/.local/share/kspay-devix
 devix update
 ```
 
-命令每次从 GitHub `main` 获取最新发布版本，并完成三件事：把 CLI 安装到新的用户级版本缓存并原子切换稳定启动器；同步平台托管的 `AGENTS.md` 和 `standards/`；同步 `.devix/templates/change/` 供之后的新 change 使用。失败时保留原 CLI current 指针。
+命令每次从 GitHub `main` 获取最新发布版本，并完成四件事：把 CLI 安装到新的用户级版本缓存并原子切换稳定启动器；同步平台托管的 `AGENTS.md` 和 `standards/`；同步 `.devix/templates/change/` 供之后的新 change 使用；同步 `.codeflicker/commands/` 下六个 Devix 斜杠命令。失败时保留原 CLI current 指针。
 
-它不修改已有 `changes/`、`knowledge/`、`repositories.yaml`、`repos/`、`.devix/runtime/` 或 Git 远端，也不会 stage、commit、push。模板更新只影响之后创建的新 change。
+它不修改已有 `changes/`、`knowledge/`、`repositories.yaml`、`repos/`、`.devix/runtime/` 或 Git 远端，也不会 stage、commit、push；change 模板更新只影响之后创建的新 change，六个 Devix 斜杠命令则会更新到最新版本，其他 `.codeflicker/commands/` 文件不受影响。
 
 临时验证其他发布分支或源地址时可以显式指定：
 
@@ -70,6 +70,8 @@ devix install ~/work/kspay-workspace
 cd ~/work/kspay-workspace
 ```
 
+初始化会在工作区生成 `.codeflicker/commands/` 下的六个一级命令：`/devix-analyze`、`/devix-design`、`/devix-code`、`/devix-test`、`/devix-close` 和 `/devix-status`。MyFlicker 启动时会从该项目目录发现这些命令；Codex 仍通过 `devix agent install` 注册对应 skills。
+
 该命令生成：
 
 ```text
@@ -82,6 +84,8 @@ kspay-workspace/
 ├── knowledge/
 ├── standards/
 ├── repos/                  # Git 忽略
+├── .codeflicker/
+│   └── commands/            # 初始化生成的六个 Devix 斜杠命令
 └── .devix/
     ├── runtime/            # 本机 active change 状态
     └── templates/change/   # update 管理的新 change 模板

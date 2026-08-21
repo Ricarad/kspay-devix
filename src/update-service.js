@@ -3,7 +3,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { run } = require("./git");
 const { DevixError } = require("./errors");
-const { CORE_CHANGE_FILES } = require("./files");
+const { CORE_CHANGE_FILES, DEVIX_COMMAND_FILES } = require("./files");
 const { activateToolchain, prepareToolchain } = require("./toolchain-service");
 
 const DEFAULT_SOURCE_URL = "git@github.com:Ricarad/kspay-devix.git";
@@ -69,6 +69,7 @@ function updateWorkspace(root, options = {}) {
     const sourceAgents = path.join(sourceRoot, "AGENTS.md");
     const sourceStandards = path.join(sourceRoot, "standards");
     const sourceChangeTemplates = path.join(sourceRoot, "templates", "change");
+    const sourceCommands = path.join(sourceRoot, "templates", "commands");
     if (!fs.existsSync(sourceAgents) || !fs.statSync(sourceAgents).isFile()) {
       throw new DevixError("UPDATE_SOURCE_INVALID", "更新源缺少 AGENTS.md");
     }
@@ -84,6 +85,15 @@ function updateWorkspace(root, options = {}) {
         throw new DevixError("UPDATE_SOURCE_INVALID", `更新源缺少 change 模板：${fileName}`);
       }
     }
+    const hasCommandTemplates = fs.existsSync(sourceCommands) && fs.statSync(sourceCommands).isDirectory();
+    if (hasCommandTemplates) {
+      for (const fileName of DEVIX_COMMAND_FILES) {
+        const template = path.join(sourceCommands, fileName);
+        if (!fs.existsSync(template) || !fs.statSync(template).isFile()) {
+          throw new DevixError("UPDATE_SOURCE_INVALID", `更新源缺少斜杠命令模板：${fileName}`);
+        }
+      }
+    }
 
     const prepared = prepareToolchain(sourceRoot, sourceCommit, options);
     const managedFiles = [
@@ -93,6 +103,10 @@ function updateWorkspace(root, options = {}) {
         source: relative,
         target: path.join(".devix", "templates", "change", path.relative("templates/change", relative)),
       })),
+      ...(hasCommandTemplates ? DEVIX_COMMAND_FILES.map((fileName) => ({
+        source: path.join("templates", "commands", fileName),
+        target: path.join(".codeflicker", "commands", fileName),
+      })) : []),
     ];
     const updatedFiles = [];
     const unchangedFiles = [];
@@ -113,7 +127,12 @@ function updateWorkspace(root, options = {}) {
       source_url: sourceUrl,
       source_branch: sourceBranch,
       source_commit: sourceCommit,
-      managed_paths: ["AGENTS.md", "standards/", ".devix/templates/change/"],
+      managed_paths: [
+        "AGENTS.md",
+        "standards/",
+        ".devix/templates/change/",
+        ...(hasCommandTemplates ? [".codeflicker/commands/"] : []),
+      ],
       updated_files: updatedFiles,
       unchanged_files: unchangedFiles,
       cli,

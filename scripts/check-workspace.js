@@ -2,7 +2,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const YAML = require("yaml");
-const { CORE_CHANGE_FILES } = require("../src/files");
+const { CORE_CHANGE_FILES, DEVIX_COMMAND_FILES } = require("../src/files");
 const { validateChange } = require("../src/change-service");
 
 const root = path.resolve(__dirname, "..");
@@ -44,6 +44,12 @@ const templateFiles = fs.readdirSync(path.join(root, "templates", "change")).sor
 const expectedTemplateFiles = [...CORE_CHANGE_FILES, "decisions.md"].sort();
 if (JSON.stringify(templateFiles) !== JSON.stringify(expectedTemplateFiles)) {
   errors.push(`TEMPLATE_FILES expected=${expectedTemplateFiles.join(",")} actual=${templateFiles.join(",")}`);
+}
+
+const commandTemplateDir = path.join(root, "templates", "commands");
+const commandTemplateFiles = fs.readdirSync(commandTemplateDir).sort();
+if (JSON.stringify(commandTemplateFiles) !== JSON.stringify([...DEVIX_COMMAND_FILES].sort())) {
+  errors.push(`COMMAND_TEMPLATES expected=${DEVIX_COMMAND_FILES.join(",")} actual=${commandTemplateFiles.join(",")}`);
 }
 
 const changesDir = path.join(root, "changes");
