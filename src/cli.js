@@ -3,7 +3,9 @@ const {
   advanceChange,
   changeStatus,
   createAndActivateChange,
+  intakeChange,
   pauseChange,
+  reviseChange,
   switchChange,
   validateChange,
 } = require("./change-service");
@@ -12,6 +14,7 @@ const { DevixError } = require("./errors");
 const { initializeWorkspace } = require("./workspace-service");
 const { addRepository, listRepositories } = require("./repository-service");
 const { updateWorkspace } = require("./update-service");
+const { installAgents } = require("./agent-service");
 
 function parseArguments(args) {
   const positional = [];
@@ -23,7 +26,7 @@ function parseArguments(args) {
       continue;
     }
     const name = token.slice(2);
-    if (["json", "adopt-current-branch", "no-git", "codegraph-init", "help", "version"].includes(name)) {
+    if (["json", "strict", "confirm", "adopt-current-branch", "no-git", "codegraph-init", "help", "version"].includes(name)) {
       options[name] = true;
       continue;
     }
@@ -46,6 +49,7 @@ function usage() {
   return `用法：
   devix init|install <workspace-directory>
   devix update [--source <devix-git-url>] [--branch main]
+  devix agent install [--target codex|myflicker|all] [--source <path>] [--ref <ref>]
   devix repo add <repo-id> --url <git-url> [--base master] [--codegraph-init]
   devix repo list
   devix change new <change-id> --title <标题> [--repo <repo-id[:base-branch]>]
@@ -53,7 +57,9 @@ function usage() {
   devix change pause [--adopt-current-branch]
   devix change repo-add <change-id> --repo <repo-id[:base-branch]>
   devix change status [change-id]
-  devix change validate <change-id>
+  devix change intake [change-id] --title <标题> [--source <链接>] [--description <需求原文>]
+  devix change revise <change-id> --mode local|delta|major --summary <变更说明> [--confirm --reviewer <人> --evidence <证据>]
+  devix change validate [change-id] [--strict]
   devix change advance <change-id> --to <phase>
 
 全局参数：--workspace <kspay-devix目录>`;
@@ -77,6 +83,17 @@ async function main(argv) {
     print(initializeWorkspace(positional[1], {
       branch: options.branch,
       noGit: Boolean(options["no-git"]),
+    }));
+    return;
+  }
+
+  if (subject === "agent") {
+    if (positional[1] !== "install") throw new DevixError("USAGE", usage());
+    print(installAgents({
+      target: options.target === "all" ? "all" : options.target,
+      source: options.source,
+      ref: options.ref,
+      home: options.home,
     }));
     return;
   }
@@ -140,9 +157,27 @@ async function main(argv) {
     case "status":
       print(changeStatus(root, changeId));
       break;
+    case "intake":
+      print(intakeChange(root, {
+        changeId: changeId || options.id,
+        title: options.title || positional[3],
+        source: options.source,
+        description: options.description,
+        repoSpecs: options.repo,
+      }));
+      break;
+    case "revise":
+      if (!changeId || !options.mode || !options.summary) throw new DevixError("USAGE", usage());
+      print(reviseChange(root, changeId, options.mode, options.summary, {
+        confirm: Boolean(options.confirm),
+        reviewer: options.reviewer,
+        evidence: options.evidence,
+      }));
+      break;
     case "validate": {
-      if (!changeId) throw new DevixError("USAGE", usage());
-      const result = validateChange(root, changeId);
+      const targetId = changeId || loadRuntimeState(root).active_change_id;
+      if (!targetId) throw new DevixError("NO_ACTIVE_CHANGE", "当前没有激活的 change");
+      const result = validateChange(root, targetId, { strict: Boolean(options.strict) });
       print(result);
       if (!result.valid) process.exitCode = 1;
       break;

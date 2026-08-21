@@ -147,6 +147,15 @@ function createChangeFiles(root, changeId, title, manifest, config = loadConfig(
       "utf8",
     );
   }
+  const includeDecisions = Boolean(manifest.include_decisions);
+  if (includeDecisions) {
+    const source = path.join(templateDir, "decisions.md");
+    if (!fs.existsSync(source)) {
+      throw new DevixError("TEMPLATE_INVALID", `模板缺少文件：${source}`);
+    }
+    fs.writeFileSync(path.join(target, "decisions.md"), fs.readFileSync(source, "utf8"), "utf8");
+  }
+  delete manifest.include_decisions;
   writeYaml(path.join(target, "change.yaml"), manifest);
 }
 

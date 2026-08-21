@@ -136,7 +136,7 @@ devix repo add kspay-promo \
 
 1. 从内容生成 change-id 和标题。
 2. 检查并保存当前 active change。
-3. 创建六文件 change，登记原始文档路径/链接并整理需求与发布影响。
+3. 创建核心 change 文件和 `decisions.md`，登记原始文档路径/链接并整理需求与发布影响。
 4. 在澄清后读取 knowledge 和 `repositories.yaml`。
 5. 判断影响仓库，内部执行 repo-add、切换 feature branch 和 CodeGraph sync。
 6. 只有关键需求歧义或 Git 现场偏差时才请求确认。
@@ -157,7 +157,24 @@ devix change new bank-seckill-push \
   --repo kspay-promo
 ```
 
-## 5. 工作空间 Git 边界
+## 5. 注册 Codex 与 MyFlicker 命令
+
+在 Devix 工作空间或源码仓库执行：
+
+```bash
+devix agent install
+```
+
+命令会自动检测已安装的 Codex 和 MyFlicker，并幂等安装双客户端插件。也可以指定客户端：
+
+```bash
+devix agent install --target codex
+devix agent install --target myflicker
+```
+
+安装后 `/` 面板会直接检索到 `/devix-analyze`、`/devix-design`、`/devix-code`、`/devix-test`、`/devix-close` 和 `/devix-status`。这些命令不需要参数；需求原文、附件和 Docs 链接由当前会话自动提供给对应阶段。
+
+## 6. 工作空间 Git 边界
 
 消费者工作空间根目录不是 Git 仓库，也不应配置 Git 远端。当前 `changes/`、`knowledge/`、`repositories.yaml` 和 `.devix/runtime/` 都只保存在本机；需求共享方案后续单独设计。
 

@@ -23,7 +23,7 @@ kspay-devix/
 
 使用者只需把需求描述、需求文档或文档链接发给 AI，并说明“开始这个需求”，不需要填写 change-id、仓库或分支参数。AI 内部执行：
 
-1. 从内容生成 change-id 和标题，保存当前 active change 并创建六文件规格包。
+1. 从内容生成 change-id 和标题，保存当前 active change 并创建核心规格文件及 `decisions.md`。
 2. 在 `clarification` 整理原始输入、范围和验收标准，进入设计前定向读取知识库。
 3. 从 `repositories.yaml` 和代码现状判断影响仓库，自动关联 feature branch。
 4. 在 `design` 完成 CodeGraph/代码勘察、技术方案和任务拆解。
@@ -67,6 +67,15 @@ devix update
 npm install
 npm link
 ```
+
+安装完成后，在 Codex 或 MyFlicker 中运行 `devix agent install` 注册同一套一级 slash 指令：
+
+```text
+/devix-analyze  /devix-design  /devix-code
+/devix-test     /devix-close   /devix-status
+```
+
+这些命令不需要子命令或参数。客户端把当前自然语言、附件和文档链接交给 Devix 协议；`release.md` 随分析、设计、实现和验证持续维护，不提供独立 release 命令。代码阶段的自然语言修改由 `/devix-code` 按 Local / Delta / Major 增量流程处理。`/devix-code` 还必须在 `tasks.md` 登记类级别代码产物，`/devix-test` 以此生成并执行单元测试。
 
 以下命令用于调试或人工接管，日常需求入口不需要手工执行：
 

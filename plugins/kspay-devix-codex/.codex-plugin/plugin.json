@@ -1,0 +1,17 @@
+{
+  "name": "kspay-devix-codex",
+  "description": "Devix structured change workflow for Codex",
+  "version": "1.0.0",
+  "author": {
+    "name": "KSPay Devix"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Devix Workflow",
+    "shortDescription": "Structured requirements to release workflow",
+    "longDescription": "A gated, auditable workflow for requirements clarification, design, implementation, testing, and closeout.",
+    "developerName": "KSPay Devix",
+    "category": "Productivity",
+    "capabilities": ["Write", "Interactive"]
+  }
+}

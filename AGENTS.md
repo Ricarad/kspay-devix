@@ -39,6 +39,10 @@ AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 g
 
 ## Change 控制
 
+- 安装后由 `devix agent install` 注册 Codex/MyFlicker 的 `/devix-analyze`、`/devix-design`、`/devix-code`、`/devix-test`、`/devix-close`、`/devix-status` 一级命令；命令不要求用户输入子命令或参数。
+- 一级命令分别驱动 `devix change intake`、阶段校验和 `devix change revise`，`release.md` 随各阶段持续维护，不提供独立 release 指令。
+- implementation 阶段收到自然语言修改时按 Local / Delta / Major 分类；Delta 和 Major 必须先更新受影响 change 文件并等待必要 gate/确认，不能静默越级。
+
 - 用户发来一段新需求描述、需求文档、本地文件或文档链接并表达“开始需求/开始开发”时，视为新 change 入口。不得要求用户提供 change-id、英文标题、仓库 ID、分支名或 CLI 参数。
 - AI 从需求语义生成简洁的 change-id 和标题，先用 `devix change status` 检查 active change，再在内部调用 `devix change new`。原始文件路径/链接写入 `change.yaml.sources`，原始描述和结构化澄清写入 README。
 - 新 change 初始不要求用户指定代码仓库。完成初步澄清后，先读取 knowledge 和 `repositories.yaml`，结合需求关键词、仓库 AGENTS 与必要的只读代码勘察判断影响仓库，再由 AI 内部调用 `repo-add`。
@@ -71,6 +75,7 @@ AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 g
 - `design.md`：基于真实代码路径的技术方案、数据/接口/兼容/回滚设计。
 - `decisions.md`（可选）：复杂需求已经确认的选择、负责人、日期和依据；假设不能伪装成决策。
 - `tasks.md`：可执行任务、依赖、状态和验证方式。
+- `tasks.md`：可执行任务、依赖、状态、验证方式以及 implementation 阶段的类级别代码产物清单。
 - `release.md`：实际涉及的发布配置、Staging/PRT/Prod 差异、上线前后 SOP、监控、回滚与发布记录。
 - `verification.md`：测试矩阵、命令、环境、验收结果与未覆盖项；通过链接引用发布证据，不复制 `release.md` 正文。
 
@@ -79,6 +84,7 @@ AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 g
 ## Change 事实落档与跨会话恢复
 
 - 当前 change 的事实必须落在该 change 的正式文件中：需求与验收变化写入 `README.md`，技术链路、接口和实现方案变化写入 `design.md`，已确认的关键取舍写入 `decisions.md`，任务状态、阻塞和下一步写入 `tasks.md`，发布配置与上线 SOP 写入 `release.md`，阶段、状态、仓库分支和恢复摘要写入 `change.yaml`，测试与验收证据写入 `verification.md`。
+- `/devix-code` 必须在 `tasks.md` 的代码产物清单中登记每个新增、修改、删除或生成测试的类级别构造；`/devix-test` 读取该清单生成或补齐单测并记录实际执行结果。
 - 未确认的方案只能在 `README.md` 或 `design.md` 中标记为假设或待确认项，不能提前写成 `decisions.md` 中的已确认决策。
 - 用户确认方案或代码事实发生变化后，必须先更新全部受影响的 change 文件并清理相互冲突的旧描述，再继续编码、验证或切换任务；不能只追加新结论而保留已经失效的旧方案。
 - `change.yaml.resume.context_summary` 只保存简洁的恢复摘要和文档入口，不能承载完整方案，也不能替代 `README.md`、`design.md`、`decisions.md` 或 `tasks.md`。

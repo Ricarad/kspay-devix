@@ -41,7 +41,7 @@ for (const file of files.filter((name) => name.endsWith(".md"))) {
 }
 
 const templateFiles = fs.readdirSync(path.join(root, "templates", "change")).sort();
-const expectedTemplateFiles = [...CORE_CHANGE_FILES].sort();
+const expectedTemplateFiles = [...CORE_CHANGE_FILES, "decisions.md"].sort();
 if (JSON.stringify(templateFiles) !== JSON.stringify(expectedTemplateFiles)) {
   errors.push(`TEMPLATE_FILES expected=${expectedTemplateFiles.join(",")} actual=${templateFiles.join(",")}`);
 }

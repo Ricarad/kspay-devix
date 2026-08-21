@@ -17,6 +17,7 @@
     "bin/",
     "src/",
     "templates/",
+    "plugins/",
     "standards/",
     "knowledge/",
     "devix.yaml",

@@ -377,6 +377,9 @@ function newManifest(changeId, title, repositories) {
       verification: { status: "pending", reviewer: "", evidence: "" },
     },
     blockers: [],
+    structured_workflow: false,
+    revisions: [],
+    revision_state: null,
   };
 }
 
@@ -394,8 +397,144 @@ function createAndActivateChange(root, changeId, title, repoSpecs = [], options 
     pauseChange(root, runtime.active_change_id, options);
   }
   const manifest = newManifest(changeId, title, repositories);
+  if (options.includeDecisions) manifest.include_decisions = true;
   createChangeFiles(root, changeId, title, manifest);
   return activateChange(root, changeId, options);
+}
+
+function slugify(value) {
+  const slug = String(value || "")
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  return slug || `change-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}`;
+}
+
+function appendDocumentSection(filePath, heading, body) {
+  let content = fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
+  content = `${content.trimEnd()}\n\n${heading}\n\n${body.trim()}\n`;
+  fs.writeFileSync(filePath, `${content.trimEnd()}\n`, "utf8");
+}
+
+function intakeChange(root, options = {}) {
+  const title = String(options.title || "").trim();
+  const description = String(options.description || "").trim();
+  if (!title && !description) {
+    throw new DevixError("INTAKE_INPUT_REQUIRED", "需求 intake 至少需要 title 或 description");
+  }
+  const changeId = options.changeId || slugify(title || description);
+  const context = createAndActivateChange(root, changeId, title || changeId, options.repoSpecs || [], {
+    ...options,
+    includeDecisions: true,
+  });
+  const config = loadConfig(root);
+  const change = loadChange(root, changeId, config);
+  change.structured_workflow = true;
+  change.sources = [...new Set([...(change.sources || []), ...(Array.isArray(options.sources) ? options.sources : options.source ? [options.source] : [])])];
+  change.resume = change.resume || {};
+  change.resume.context_summary = `已完成需求 intake，当前处于 clarification。正式需求见 README.md，决策见 decisions.md，发布影响见 release.md。`;
+  saveChange(root, change, config);
+  const directory = changeDirectory(root, changeId, config);
+  if (description) {
+    appendDocumentSection(path.join(directory, "README.md"), "## Intake 记录", description);
+  }
+  if (options.openDecision || options.assumption) {
+    const decisionsPath = path.join(directory, "decisions.md");
+    const rows = [];
+    if (options.openDecision) rows.push(`- ${options.openDecision}`);
+    if (options.assumption) rows.push(`- ${options.assumption}`);
+    appendDocumentSection(decisionsPath, "### Intake 待确认项", rows.join("\n"));
+  }
+  return { ...context, change_id: changeId, phase: "clarification", sources: change.sources, context_summary: change.resume.context_summary };
+}
+
+function ensureDecisionsFile(root, changeId, config) {
+  const filePath = path.join(changeDirectory(root, changeId, config), "decisions.md");
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, "## Open Decisions\n\n## Confirmed Decisions\n\n## Assumptions\n", "utf8");
+  }
+  return filePath;
+}
+
+function reviseChange(root, changeId, mode, summary, options = {}) {
+  const allowed = new Set(["local", "delta", "major"]);
+  if (!allowed.has(mode)) throw new DevixError("REVISION_MODE_INVALID", `不支持的增量变更类型：${mode}`);
+  if (!String(summary || "").trim()) throw new DevixError("REVISION_SUMMARY_REQUIRED", "增量变更必须说明内容");
+  const config = loadConfig(root);
+  const change = loadChange(root, changeId, config);
+  if (mode !== "major" && change.phase !== "implementation") {
+    throw new DevixError("REVISION_PHASE_INVALID", `${mode} 增量只能在 implementation 阶段处理，当前为 ${change.phase}`);
+  }
+  change.gates = change.gates || {
+    clarification: { status: "pending", reviewer: "", evidence: "" },
+    design_review: { status: "pending", reviewer: "", evidence: "" },
+    release_readiness: { status: "pending", reviewer: "", evidence: "" },
+    verification: { status: "pending", reviewer: "", evidence: "" },
+  };
+  const directory = changeDirectory(root, changeId, config);
+  const timestamp = now();
+  const requiresConfirmation = mode !== "local";
+  change.revisions = change.revisions || [];
+  const pendingRevision = options.confirm && change.revision_state?.status === "pending_confirmation" && change.revision_state.mode === mode && change.revision_state.summary === String(summary).trim()
+    ? change.revision_state
+    : null;
+  const revision = pendingRevision ? { ...pendingRevision, status: "confirmed" } : {
+    id: `REV-${change.revisions.length + 1}`,
+    mode,
+    summary: String(summary).trim(),
+    created_at: timestamp,
+    status: !requiresConfirmation || options.confirm ? "confirmed" : "pending_confirmation",
+    affected_documents: mode === "local" ? ["tasks.md"] : mode === "delta" ? ["README.md", "design.md", "decisions.md", "tasks.md", "release.md"] : ["README.md", "design.md", "decisions.md", "tasks.md", "release.md", "verification.md"],
+  };
+  if (options.confirm && requiresConfirmation) {
+    if (!options.reviewer || !options.evidence) {
+      throw new DevixError("REVISION_CONFIRMATION_EVIDENCE_REQUIRED", "确认增量变更必须提供 reviewer 和 evidence");
+    }
+    revision.reviewer = options.reviewer;
+    revision.evidence = options.evidence;
+  }
+  if (pendingRevision) {
+    const index = change.revisions.findIndex((item) => item.id === revision.id);
+    if (index >= 0) change.revisions[index] = revision;
+  } else {
+    change.revisions.push(revision);
+  }
+  change.revision_state = revision;
+  const revisionHeading = `### ${revision.id} ${mode.toUpperCase()} (${timestamp})`;
+  if (!pendingRevision) {
+    appendDocumentSection(path.join(directory, "README.md"), "## 增量变更记录", `${revisionHeading}\n\n${revision.summary}`);
+    appendDocumentSection(path.join(directory, "tasks.md"), "## 增量任务记录", `${revisionHeading}\n\n- ${revision.summary}\n- 状态：${revision.status}`);
+  }
+  if (mode !== "local") {
+    const decisionsPath = ensureDecisionsFile(root, changeId, config);
+    const decisionsHeading = revision.status === "confirmed" ? "## Confirmed Decisions" : "## Open Decisions";
+    if (!pendingRevision || revision.status === "confirmed") {
+      appendDocumentSection(decisionsPath, decisionsHeading, `${revisionHeading}\n\n- ${revision.status === "confirmed" ? "已确认" : "需要确认"}：${revision.summary}\n- 状态：${revision.status}`);
+    }
+    if (!pendingRevision) appendDocumentSection(path.join(directory, "release.md"), "## 增量变更影响", `${revisionHeading}\n\n- 发布影响待根据本次变更重新判断：${revision.summary}`);
+    if (mode === "major") {
+      change.phase = "clarification";
+      change.status = "active";
+      change.next_action = "重新澄清重大增量变更，并重审受影响的技术方案";
+      change.gates.clarification = { status: "pending", reviewer: "", evidence: "" };
+    } else {
+      change.phase = "implementation";
+      change.status = options.confirm ? "active" : "blocked";
+      change.next_action = options.confirm ? "按增量方案继续代码实现" : "等待用户确认增量变更后再继续代码实现";
+    }
+    change.gates.design_review = { status: options.confirm && mode === "delta" ? "passed" : "pending", reviewer: options.confirm && mode === "delta" ? options.reviewer : "", evidence: options.confirm && mode === "delta" ? options.evidence : "" };
+    change.gates.release_readiness = { status: "pending", reviewer: "", evidence: "" };
+    change.gates.verification = { status: "pending", reviewer: "", evidence: "" };
+  } else {
+    change.status = "active";
+    change.next_action = "继续代码实现，并在 tasks.md 记录局部实现变更";
+  }
+  change.resume = change.resume || {};
+  change.resume.context_summary = `最近变更 ${revision.id}（${mode}）：${revision.summary}`;
+  saveChange(root, change, config);
+  return { change_id: changeId, revision, phase: change.phase, status: change.status, gates: change.gates };
 }
 
 function addRepositories(root, changeId, repoSpecs, options = {}) {
@@ -450,7 +589,43 @@ function addRepositories(root, changeId, repoSpecs, options = {}) {
   return buildContext(root, change);
 }
 
-function validateChange(root, changeId) {
+function templateMatches(root, changeId, name, config) {
+  const directory = changeDirectory(root, changeId, config);
+  const workspaceTemplate = path.join(root, ".devix", "templates", "change", name);
+  const packageTemplate = path.resolve(__dirname, "..", "templates", "change", name);
+  const template = fs.existsSync(workspaceTemplate) ? workspaceTemplate : packageTemplate;
+  if (!fs.existsSync(template) || !fs.existsSync(path.join(directory, name))) return false;
+  let expected = fs.readFileSync(template, "utf8");
+  expected = expected.split("replace-with-change-id").join(changeId);
+  const change = loadChange(root, changeId, config);
+  expected = expected.split("替换为需求名称").join(change.title);
+  expected = expected.split("# 需求名称").join(`# ${change.title}`);
+  return fs.readFileSync(path.join(directory, name), "utf8") === expected;
+}
+
+function validateStrictArtifacts(root, change, directory, errors, config) {
+  if (change.schema_version !== 2) return;
+  const decisionsPath = path.join(directory, "decisions.md");
+  if (change.structured_workflow && !fs.existsSync(decisionsPath)) errors.push("strict 模式要求 structured change 创建 decisions.md");
+  if (change.structured_workflow && fs.existsSync(decisionsPath)) {
+    const decisions = fs.readFileSync(decisionsPath, "utf8");
+    for (const heading of ["## Open Decisions", "## Confirmed Decisions", "## Assumptions"]) {
+      if (!decisions.includes(heading)) errors.push(`decisions.md 缺少固定章节：${heading}`);
+    }
+  }
+  if (change.phase === "clarification") {
+    for (const name of ["design.md", "tasks.md", "verification.md"]) {
+      if (!templateMatches(root, change.id, name, config)) errors.push(`clarification 阶段不允许提前修改：${name}`);
+    }
+  } else if (change.phase === "design" && !templateMatches(root, change.id, "verification.md", config)) {
+    errors.push("design 阶段不允许提前填写 verification.md");
+  }
+  if (change.revision_state?.status === "pending_confirmation") {
+    errors.push("存在待用户确认的增量变更");
+  }
+}
+
+function validateChange(root, changeId, options = {}) {
   const config = loadConfig(root);
   const change = loadChange(root, changeId, config);
   const directory = changeDirectory(root, changeId, config);
@@ -483,6 +658,7 @@ function validateChange(root, changeId) {
       errors.push("进入 design 前必须完成知识库读取，并设置 knowledge_status=loaded 或 not_found");
     }
   }
+  if (options.strict) validateStrictArtifacts(root, change, directory, errors, config);
   return { valid: errors.length === 0, change_id: changeId, errors };
 }
 
@@ -569,6 +745,9 @@ function assertReleaseCompleted(change) {
 
 function advanceChange(root, changeId, targetPhase) {
   const change = loadChange(root, changeId);
+  if (change.revision_state?.status === "pending_confirmation") {
+    throw new DevixError("REVISION_CONFIRMATION_PENDING", "存在待用户确认的增量变更，不能推进阶段");
+  }
   const currentIndex = PHASES.indexOf(change.phase);
   const targetIndex = PHASES.indexOf(targetPhase);
   if (targetIndex !== currentIndex + 1) {
@@ -620,6 +799,9 @@ function changeStatus(root, changeId = null) {
     phase: change.phase,
     status: change.status,
     next_action: change.next_action,
+    gates: change.gates || {},
+    blockers: change.blockers || [],
+    revision_state: change.revision_state || null,
     repositories,
   };
 }
@@ -636,10 +818,12 @@ module.exports = {
   buildContext,
   changeStatus,
   createAndActivateChange,
+  intakeChange,
   newManifest,
   pauseChange,
   preflightActivate,
   preflightPause,
   switchChange,
+  reviseChange,
   validateChange,
 };

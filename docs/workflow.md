@@ -2,14 +2,16 @@
 
 ## 1. 五阶段状态模型
 
+面向 AI 的一级入口由插件注册为 `/devix-analyze`、`/devix-design`、`/devix-code`、`/devix-test`、`/devix-close` 和 `/devix-status`。它们不要求用户输入子命令；客户端统一调用 `devix change intake`、`devix change revise` 和 `devix change validate --strict`，并把当前 active change 注入上下文。
+
 `phase` 表示需求阶段，`status` 表示当前能否继续，两者独立：
 
 | 阶段 | 主要问题与产物 | 退出条件 |
 |---|---|---|
 | clarification | README 中的目标、范围、场景、验收、待确认项和发布影响初判 | clarification gate 通过，并完成知识读取或明确 not_found |
 | design | CodeGraph/代码现状、技术方案、tasks、验证设计和实际涉及的发布 SOP | design_review gate 通过 |
-| implementation | 按 tasks 修改业务代码并局部验证 | 实现完成，可进入统一验证 |
-| verification | verification 中的单测、联调和回归证据；release 中的实际发布记录 | verification gate 通过，发布事项完成 |
+| implementation | 按 tasks 修改业务代码，并在代码产物清单登记到类级别 | 实现完成，可进入统一验证 |
+| verification | 根据代码产物清单生成/补齐单测并执行，随后记录联调、回归和发布证据 | verification gate 通过，发布事项完成 |
 | closed | 需求、恢复摘要和可复用知识收口 | 状态改为 done |
 
 `status` 使用 `active / paused / blocked / done / cancelled`。例如方案等待产品确认时是 `phase: design`、`status: blocked`。
@@ -70,3 +72,7 @@ Gate 状态为 `pending / passed / failed / waived`：
 用户确认方案或代码事实变化后，先同步所有受影响文件并删除失效描述，再继续编码。`resume.context_summary` 只概括当前进度、下一步和正式文档入口，不能复制或替代完整方案。预计上下文压缩、准备新会话、暂停或切换 change、工作交接或结束工作前，应完成一次文件一致性检查；新会话只从 change 文件、已登记知识来源和当前代码事实恢复。
 
 `knowledge/` 仅保存已经验证、可跨需求复用的通用知识，不保存单个 change 的过程状态或方案正文。
+
+## 7. 增量变更
+
+代码实现中收到普通自然语言修改时，先分类为 Local、Delta 或 Major。Local 只更新实现和任务；Delta 只重审受影响的 README、design、decisions、tasks、release 章节并重新打开必要 gate；Major 回到 clarification/design，同时保留历史和已失效证据。无法判断时按 Delta 处理。对应 API 为 `devix change revise <id> --mode ... --summary ...`。

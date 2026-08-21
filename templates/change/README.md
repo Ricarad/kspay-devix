@@ -38,6 +38,7 @@
 | [`change.yaml`](./change.yaml) | 状态、gate、仓库与分支 |
 | [`README.md`](./README.md) | 需求澄清、范围、验收标准和关键结论 |
 | [`design.md`](./design.md) | 技术方案 |
+| [`decisions.md`](./decisions.md) | 待决策项、确认决策与假设（structured change） |
 | [`tasks.md`](./tasks.md) | 实施任务与进度 |
 | [`release.md`](./release.md) | 发布配置、环境差异、上线 SOP、监控与回滚 |
 | [`verification.md`](./verification.md) | 单测、联调与最终验证证据 |
