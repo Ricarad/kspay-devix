@@ -41,7 +41,6 @@
 
 - 本规则适用于所有 SLF4J Logger 实例，不依赖对象名是 `log`、`logger` 或其他名称。
 - 支付团队代码打印日志时禁止使用 `+` 拼接消息字符串。普通日志不携带异常时，按仓库惯例使用 SLF4J `{}` 占位符。
-- 日志需要同时记录动态业务参数和异常堆栈时，不使用 SLF4J `{}` 占位符传递业务参数；先用 `String.format(...)` 生成完整消息，再把异常作为唯一的第二个参数传入：`log.error(String.format("operation failed, identifier=%s", identifier), e)`。
-- 禁止 `log.error("operation failed, identifier={}", identifier, e)` 这类“SLF4J 占位参数 + 末尾异常”混合调用；必须让调用形式明确匹配 `error(String msg, Throwable t)`，避免异常被按普通参数处理而丢失堆栈。
-- 消息不包含动态参数时直接使用 `log.error("operation failed", e)`，不为固定文本套 `String.format`。
+- 日志需要同时记录动态业务参数和异常堆栈时，按仓库惯例使用 SLF4J `{}` 占位符传递业务参数，并把异常对象作为最后一个参数传入：`log.error("operation failed, identifier={}", identifier, e)`。异常对象不在最后时，可能被 SLF4J 当作普通参数处理，导致异常堆栈丢失。
+- 消息不包含动态参数时直接使用 `log.error("operation failed", e)`。
 - 异常日志仍需遵守敏感信息约束，不打印完整请求体、素材正文、token 或其他真实敏感数据。
