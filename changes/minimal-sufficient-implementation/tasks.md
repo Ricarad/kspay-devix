@@ -6,7 +6,7 @@
 |---|---|---|---|---|---|---|
 | P1 | implementation | kspay-devix | 在 `standards/coding.md` 增加最小充分实现、校验边界、快速失败和显式暴露不确定性规则 | design review | done | 规范章节 |
 | P2 | verification | kspay-devix | 运行单测、工作区检查、文档和 diff 检查 | P1 | done | `verification.md` |
-| P3 | release | kspay-devix | 提交并推送发布源，使消费者可通过 `devix update` 同步 | P2 | doing | 待发布提交与远端 ref |
+| P3 | release | kspay-devix | 提交并推送发布源，使消费者可通过 `devix update` 同步 | P2 | done | `cf18aeb` 已推送至 `origin/main` |
 
 ## 代码产物清单
 
@@ -24,4 +24,4 @@
 
 ## 下一步动作
 
-规范修改和验证已完成，下一步提交并推送 `main`，供消费者执行 `devix update`。
+规范修改、验证和发布源推送已完成；消费者工作空间执行 `devix update` 后补充同步证据。
