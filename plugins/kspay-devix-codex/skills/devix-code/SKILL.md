@@ -7,6 +7,8 @@ Run only after the design review gate passes. Read README.md, design.md, tasks.m
 
 After every implementation batch, update the `tasks.md` section `代码产物清单`. Record every added, modified, deleted, or generated-test file and the concrete class/interface/enum (or equivalent language construct) affected. Include the repository, exact file path, behavior changed, intended unit-test target, and current unit-test status. A file-only summary is incomplete. Include generated test classes in the same ledger with `generated-test`.
 
+For frontend code only, tests may be generated and run temporarily during development or verification. Delete them after use or ensure they are excluded from the submitted content; frontend delivery must not retain or submit temporary test files. Record their execution evidence in `verification.md`. Backend code continues to follow the ledger and test artifact rules above.
+
 For ordinary user changes, classify them before coding:
 
 - Local: internal implementation-only change. Stay in implementation, update code/tests and tasks.md.

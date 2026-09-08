@@ -7,6 +7,8 @@
 | P1 | implementation | kspay-devix | 在 `standards/coding.md` 增加最小充分实现、校验边界、快速失败和显式暴露不确定性规则 | design review | done | 规范章节 |
 | P2 | verification | kspay-devix | 运行单测、工作区检查、文档和 diff 检查 | P1 | done | `verification.md` |
 | P3 | release | kspay-devix | 提交并推送发布源，使消费者可通过 `devix update` 同步 | P2 | done | `cf18aeb` 已推送至 `origin/main` |
+| P4 | implementation | kspay-devix | 补充前端临时测试文件规则，并同步更新测试规范、根规则、技能和命令模板 | design review | done | 规则与入口已同步 |
+| P5 | verification | kspay-devix | 运行工作区检查并核对前后端规则边界 | P4 | done | `npm test`、`npm run check`、`git diff --check` 通过 |
 
 ## 代码产物清单
 
@@ -15,6 +17,8 @@
 | ID | 仓库 | 文件 | 类/接口/枚举 | 变更类型 | 生成或修改内容 | 单测目标 | 单测状态 |
 |---|---|---|---|---|---|---|---|
 | C1 | kspay-devix | `standards/coding.md` | `1.1 最小充分实现与校验边界`（Markdown 规范章节） | modified | 新增最小实现、边界校验、快速失败、抽象控制和不确定性记录规则 | 不适用；由工作区检查和文档验收覆盖 | not_applicable |
+| C2 | kspay-devix | `standards/testing.md` | `4. 前端临时测试文件`（Markdown 规范章节） | modified | 允许前端临时生成/执行测试并要求删除或排除提交，后端规则不变 | 不适用；由规则检查覆盖 | not_applicable |
+| C3 | kspay-devix | `AGENTS.md`、`plugins/kspay-devix-codex/skills/*`、`templates/commands/*` | 工作流提示文本 | modified | 同步前端临时测试例外与验证记录要求 | 不适用；由工作区检查覆盖 | not_applicable |
 
 变更类型使用 `added / modified / deleted / generated-test`；单测状态使用 `todo / generated / passed / failed / not_applicable`。不适合单测的产物必须填写原因。
 
@@ -24,4 +28,4 @@
 
 ## 下一步动作
 
-规范修改、验证和发布源推送已完成；消费者工作空间执行 `devix update` 后补充同步证据。
+规范修改和本地验证已完成；消费者工作空间执行 `devix update` 后补充同步证据。

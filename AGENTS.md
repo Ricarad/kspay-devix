@@ -84,7 +84,7 @@ AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 g
 ## Change 事实落档与跨会话恢复
 
 - 当前 change 的事实必须落在该 change 的正式文件中：需求与验收变化写入 `README.md`，技术链路、接口和实现方案变化写入 `design.md`，已确认的关键取舍写入 `decisions.md`，任务状态、阻塞和下一步写入 `tasks.md`，发布配置与上线 SOP 写入 `release.md`，阶段、状态、仓库分支和恢复摘要写入 `change.yaml`，测试与验收证据写入 `verification.md`。
-- `/devix-code` 必须在 `tasks.md` 的代码产物清单中登记每个新增、修改、删除或生成测试的类级别构造；`/devix-test` 读取该清单生成或补齐单测并记录实际执行结果。
+- `/devix-code` 必须在 `tasks.md` 的代码产物清单中登记每个新增、修改、删除或生成测试的类级别构造；`/devix-test` 读取该清单生成或补齐单测并记录实际执行结果。仅对前端代码，开发或验证阶段临时生成且执行后删除或明确排除提交的测试文件不作为交付产物保留；其执行证据仍写入 `verification.md`。后端继续遵循现有测试生成、登记、保留和提交要求。
 - 未确认的方案只能在 `README.md` 或 `design.md` 中标记为假设或待确认项，不能提前写成 `decisions.md` 中的已确认决策。
 - 用户确认方案或代码事实发生变化后，必须先更新全部受影响的 change 文件并清理相互冲突的旧描述，再继续编码、验证或切换任务；不能只追加新结论而保留已经失效的旧方案。
 - `change.yaml.resume.context_summary` 只保存简洁的恢复摘要和文档入口，不能承载完整方案，也不能替代 `README.md`、`design.md`、`decisions.md` 或 `tasks.md`。

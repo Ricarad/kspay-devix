@@ -20,6 +20,7 @@
 ## 发布记录
 
 - 2026-09-02：提交 `cf18aeb`（`docs: codify minimal implementation boundaries`）已推送至 `origin/main`，远端 `main` 从 `d963331` 更新至 `cf18aeb`。
+- 2026-09-08：本地补充前端临时测试文件规则及工作流入口，`npm test`、`npm run check` 和 `git diff --check` 通过；本轮未执行新的 push。
 - 消费者工作空间的 `devix update` 尚未由本轮执行，待用户在其他工作目录验证同步结果。
 
 ## 回滚
