@@ -1,0 +1,48 @@
+schema_version: 2
+id: local-repo-auto-discovery
+title: 简化本地仓库接入与自动初始化
+type: feature
+owner: chenshaojie
+created_at: 2026-08-24T10:03:27.626Z
+updated_at: 2026-09-02T02:19:23.658Z
+phase: design
+status: paused
+next_action: 完成基于当前 CLI 代码的技术设计和任务拆解
+sources:
+  - /var/folders/gr/6sx54vcd32g9j2dl2j44jdhr0000gn/T/codex-clipboard-d11985b1-08ca-472c-a584-919126d11638.png
+resume:
+  context_summary: 已补充澄清：用户执行 /devix-analyze 时扫描 repos/，以 repositories.yaml 的 id/local_path 判断是否已加载，已加载条目不重复写入。正式需求见 README.md，决策见 decisions.md，设计见 design.md。
+  knowledge_status: not_found
+  knowledge_sources: []
+  last_paused_at: 2026-09-02T02:19:23.657Z
+  last_activated_at: 2026-08-24T10:03:27.637Z
+repositories: []
+release:
+  impact: required
+  status: pending
+  environments:
+    - staging
+    - prt
+    - prod
+  document: release.md
+gates:
+  clarification:
+    status: passed
+    reviewer: chenshaojie
+    evidence: 用户确认在 /devix-analyze 需求澄清入口扫描工作空间 repos/，以 repositories.yaml 判断是否已加载，CLI intake 作为内部调用链
+  design_review:
+    status: pending
+    reviewer: ""
+    evidence: ""
+  release_readiness:
+    status: pending
+    reviewer: ""
+    evidence: ""
+  verification:
+    status: pending
+    reviewer: ""
+    evidence: ""
+blockers: []
+structured_workflow: true
+revisions: []
+revision_state: null

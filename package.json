@@ -21,7 +21,9 @@
     "standards/",
     "knowledge/",
     "devix.yaml",
-    "docs/installation.md"
+    "docs/installation.md",
+    "docs/plugin-guide.md",
+    "docs/repo-ai-governance-inventory.md"
   ],
   "scripts": {
     "test": "node --test",

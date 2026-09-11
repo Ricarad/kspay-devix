@@ -49,7 +49,7 @@ kspay-devix/
 
 ## 安装与命令
 
-完整步骤见 [`docs/installation.md`](./docs/installation.md)。推荐把 Devix CLI 与实际工作空间分开：
+完整安装步骤见 [`docs/installation.md`](./docs/installation.md)；面向同事分享的插件导览见 [`docs/plugin-guide.md`](./docs/plugin-guide.md)；仓库 AI 规范盘点见 [`docs/repo-ai-governance-inventory.md`](./docs/repo-ai-governance-inventory.md)。推荐把 Devix CLI 与实际工作空间分开：
 
 ```bash
 npm install -g 'git+ssh://git@github.com/Ricarad/kspay-devix.git#main'

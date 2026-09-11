@@ -4,9 +4,9 @@ title: Devix Release 文档与发布门禁
 type: feature
 owner: chenshaojie
 created_at: 2026-08-17T23:48:27.314Z
-updated_at: 2026-08-17T23:56:22.453Z
+updated_at: 2026-08-24T10:03:27.622Z
 phase: verification
-status: active
+status: paused
 next_action: 提交 0.5.0 并推送 GitHub main，随后记录发布结果
 sources:
   - /Users/chenshaojie/IdeaProjects/my-devix/changes/pugongying-aigc/release.md
@@ -14,7 +14,7 @@ resume:
   context_summary: 用户已确认固定生成 release.md、正文按需展开，并在进入 verification 前执行条件式发布准备门禁
   knowledge_status: not_found
   knowledge_sources: []
-  last_paused_at: null
+  last_paused_at: 2026-08-24T10:03:27.621Z
   last_activated_at: 2026-08-17T23:48:27.326Z
 repositories: []
 release:
