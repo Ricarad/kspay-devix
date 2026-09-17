@@ -16,6 +16,22 @@
 
 `status` 使用 `active / paused / blocked / done / cancelled`。例如方案等待产品确认时是 `phase: design`、`status: blocked`。
 
+### 中途取消与归档
+
+`closed/done` 表示正常完成。用户明确放弃时，任意未完成阶段可变为 `cancelled`，保留原 phase 和 gate，不需要伪造验收通过。`cancellation` 记录 `reason/reviewer/at`；`archive` 用同样字段单独记录归档，不覆盖结束结果。
+
+```bash
+devix change cancel <change-id> --reason "需求变更，停止开发" --reviewer "确认人"
+devix change archive <change-id> --reason "保留历史资料" --reviewer "确认人"
+devix change list --include-archived
+```
+
+取消并归档可给 cancel 加 `--archive`。cancel 省略 id 时仅操作 active change；无 active 时必须明确目标，不猜测 paused 需求。归档只接受 cancelled 或 closed/done，保留文件路径和代码分支；默认 list 隐藏归档，显式 status/validate 始终可读。旧 change 缺少新增字段时保持兼容，不批量迁移。
+
+active 取消先预检全部仓库并复用 pause 的 WIP 保存逻辑，冲突或 commit hook 失败时不标记取消。多个仓库中已成功的本地快照不回滚，保留供重试。非 active 取消不操作其他需求的 checkout，保留已有快照。取消会在 README/tasks 记录原因，标准任务表中未完成行转为 cancelled；发布、回滚和测试事实保持原状，仍需在 release.md 指定剩余处置。归档不代表发布回滚或清理已完成。
+
+终态不可通过 switch、activate、pause、revise、repo-add 或 advance 重新开始。继续新需求时另建 change 并引用历史材料。终态 status 展示已保存的仓库快照，不要求业务仓库仍存在。
+
 ## 2. 固定产物
 
 schema v2 的每个 change 固定包含 `change.yaml、README.md、design.md、tasks.md、release.md、verification.md`。复杂决策可另建 `decisions.md`，但当前阶段、分支、发布状态和恢复点始终以 `change.yaml` 为准。schema v1 的旧五文件 change 保持兼容；若已自行增加 `release.md`，恢复时也会加载。
@@ -27,10 +43,11 @@ schema v2 的每个 change 固定包含 `change.yaml、README.md、design.md、t
 标准顺序：
 
 ```text
-需求澄清
+需求 intake（paused，空 repositories）
   -> 定向读取 knowledge，记录 knowledge_status 与 knowledge_sources
-  -> 确定涉及仓库和模块
-  -> checkout feature branch
+  -> design 阶段只读勘察真实调用链和跨仓边界
+  -> 确定涉及仓库和模块，登记 change.yaml.repositories
+  -> 创建/切换 feature branch
   -> 读取仓库根目录到目标模块沿途的 AGENTS.md
   -> 当前目录存在 .codegraph 时执行 codegraph sync
   -> explore/node 阅读源码和调用链

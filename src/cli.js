@@ -1,9 +1,12 @@
 const {
   addRepositories,
   advanceChange,
+  archiveChange,
+  cancelChange,
   changeStatus,
   createAndActivateChange,
   intakeChange,
+  listChanges,
   pauseChange,
   reviseChange,
   switchChange,
@@ -26,7 +29,7 @@ function parseArguments(args) {
       continue;
     }
     const name = token.slice(2);
-    if (["json", "strict", "confirm", "adopt-current-branch", "no-git", "codegraph-init", "help", "version"].includes(name)) {
+    if (["json", "strict", "confirm", "archive", "include-archived", "adopt-current-branch", "no-git", "codegraph-init", "help", "version"].includes(name)) {
       options[name] = true;
       continue;
     }
@@ -57,6 +60,9 @@ function usage() {
   devix change pause [--adopt-current-branch]
   devix change repo-add <change-id> --repo <repo-id[:base-branch]>
   devix change status [change-id]
+  devix change list [--include-archived]
+  devix change cancel [change-id] --reason <原因> --reviewer <确认人> [--archive] [--adopt-current-branch]
+  devix change archive <change-id> --reason <原因> --reviewer <确认人>
   devix change intake [change-id] --title <标题> [--source <链接>] [--description <需求原文>]
   devix change revise <change-id> --mode local|delta|major --summary <变更说明> [--confirm --reviewer <人> --evidence <证据>]
   devix change validate [change-id] [--strict]
@@ -156,6 +162,21 @@ async function main(argv) {
       break;
     case "status":
       print(changeStatus(root, changeId));
+      break;
+    case "list":
+      print(listChanges(root, { includeArchived: Boolean(options["include-archived"]) }));
+      break;
+    case "cancel": {
+      const targetId = changeId || loadRuntimeState(root).active_change_id;
+      if (!targetId) throw new DevixError("NO_ACTIVE_CHANGE", "当前没有激活的 change，请指定 change-id");
+      print(cancelChange(root, targetId, {
+        ...switchOptions, reason: options.reason, reviewer: options.reviewer, archive: Boolean(options.archive),
+      }));
+      break;
+    }
+    case "archive":
+      if (!changeId) throw new DevixError("USAGE", usage());
+      print(archiveChange(root, changeId, { reason: options.reason, reviewer: options.reviewer }));
       break;
     case "intake":
       print(intakeChange(root, {

@@ -5,8 +5,8 @@ const COMMANDS = {
   "devix-design": "进行技术设计：读取澄清、知识、仓库规范和真实代码路径，写 design.md、tasks.md 与 release.md，不修改业务代码。",
   "devix-code": "进行代码实现：先读取全部正式文档和仓库规范；自然语言变更按 Local/Delta/Major 分类，Delta/Major 必须先落档并等待确认。",
   "devix-test": "进行验证：按验收标准和测试设计执行真实测试，写入 verification.md 和 release.md 的证据，未运行不能写 passed。",
-  "devix-close": "收口需求：检查所有正式文档、验证证据、release SOP 和待决策项，满足 gate 后再关闭 change。",
-  "devix-status": "只读展示 active change、阶段、gate、阻塞项、待决策、仓库现场和发布准备状态。",
+  "devix-close": "收口需求：正常完成遵守验证与发布 gate；明确放弃可在任意未完成阶段执行 change cancel --reason --reviewer，保留原 phase；仅在用户要求时 archive 或 cancel --archive。读取工作空间关闭指令，保留 Git 现场和发布待办。",
+  "devix-status": "只读展示目标 change、阶段、gate、取消原因和归档状态；历史需求用 change list --include-archived 定位，再显式 status <id>。",
 };
 
 function status(cwd) {
@@ -38,7 +38,7 @@ module.exports = {
       description: instruction,
       getPromptForCommand: async (args) => [{
         role: "user",
-        content: `你正在执行 Devix 一级命令 /${name}。${instruction}\n\n当前用户消息和附件就是本次上下文。先读取当前 workspace、active change 和 gate；严格按阶段顺序执行，不要静默越级。${args ? `\n用户补充：${args}` : ""}`,
+        content: `你正在执行 Devix 一级命令 /${name}。${instruction}\n\n当前用户消息和附件就是本次上下文。先读取 workspace、目标 change 和 gate，以及 .codeflicker/commands/${name}.md（存在时）。正常开发遵守阶段顺序；用户明确取消可保留原阶段结束，不能冒充正常完成。${args ? `\n用户补充：${args}` : ""}`,
       }],
     }));
   },

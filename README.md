@@ -26,11 +26,21 @@ kspay-devix/
 
 1. 从内容生成 change-id 和标题，保存当前 active change 并创建核心规格文件及 `decisions.md`。
 2. 在 `clarification` 整理原始输入、范围和验收标准，进入设计前定向读取知识库。
-3. 从 `repositories.yaml` 和代码现状判断影响仓库，自动关联 feature branch。
-4. 在 `design` 完成 CodeGraph/代码勘察、技术方案和任务拆解。
+3. `intake` 保持 change 为 paused 且仓库清单为空；不创建或切换 feature branch。
+4. 在 `design` 先完成 CodeGraph/代码勘察、确认真实影响仓库，再登记仓库并创建/切换 feature branch，最后形成技术方案和任务拆解。
 5. 方案通过评审后进入 `implementation`，在进入 `verification` 前确认发布准备，最后留下验证与发布证据并关闭。
 
 完整规则见 [`docs/workflow.md`](./docs/workflow.md)，多仓库与分支规则见 [`docs/repository-management.md`](./docs/repository-management.md)。
+
+需求中途变更或放弃时，可用 `/devix-close` 明确说明“取消这个需求，原因是……”，需要归档时一并说明。取消保留原阶段和成果，状态为 `cancelled`；正常完成仍须通过验证与发布门禁。CLI 示例：
+
+```bash
+devix change cancel <change-id> --reason "业务方向调整" --reviewer "确认人" --archive
+devix change list --include-archived
+devix change status <change-id>
+```
+
+归档原地记录，不移动文件、不删除分支，也不自动回滚发布。省略 `--archive` 仅取消；正常完成后可单独执行 `devix change archive <change-id> --reason "交付完成" --reviewer "确认人"`。
 
 ## 核心原则
 
@@ -81,10 +91,10 @@ npm link
 以下命令用于调试或人工接管，日常需求入口不需要手工执行：
 
 ```bash
-# 创建 change；仓库默认解析为 repos/kspay-promo，基线可用 kspay-promo:master 显式指定
+# 人工调试创建 change；日常 intake 不接受仓库参数
 devix change new example-change --title "示例需求" --repo kspay-promo:master
 
-# 澄清后才确定影响仓库时，可追加仓库；active change 会立即创建/切换需求分支
+# 完成设计阶段只读勘察后追加仓库；active change 才会创建/切换需求分支
 devix change repo-add example-change --repo kspay-promo:master
 
 # 暂停当前 change，或切回历史 change

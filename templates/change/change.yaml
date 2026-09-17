@@ -8,6 +8,8 @@ updated_at: YYYY-MM-DD
 
 phase: clarification
 status: paused
+cancellation: null
+archive: null
 next_action: 完成需求澄清，并在进入方案设计前读取相关知识库
 
 sources: []

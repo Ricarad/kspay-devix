@@ -31,6 +31,18 @@ test("intake creates decisions and preserves source/description", () => {
   assert.equal(validateChange(root, "batch-query", { strict: true }).valid, true);
 });
 
+test("intake does not associate repositories or create a feature branch", () => {
+  const root = workspace();
+  assert.throws(
+    () => intakeChange(root, { changeId: "with-repo", title: "With Repo", repoSpecs: ["repo-a"] }),
+    (error) => error.code === "INTAKE_REPOSITORY_FORBIDDEN",
+  );
+  const result = intakeChange(root, { changeId: "without-repo", title: "Without Repo" });
+  assert.equal(result.status, "paused");
+  assert.deepEqual(loadChange(root, "without-repo").repositories, []);
+  assert.equal(loadChange(root, "without-repo").phase, "clarification");
+});
+
 test("delta revision blocks implementation until explicit confirmation", () => {
   const root = workspace();
   intakeChange(root, { changeId: "revision", title: "Revision", description: "Initial" });

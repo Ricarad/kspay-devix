@@ -1,0 +1,48 @@
+schema_version: 2
+id: change-cancel-archive
+title: 支持需求中途取消和原地归档
+type: feature
+owner: chenshaojie
+created_at: 2026-09-16T08:51:56.483Z
+updated_at: 2026-09-16T09:01:12.637Z
+phase: implementation
+status: paused
+next_action: 本地实现及开发验证完成；等待发布准备确认与提交/发布指令
+sources:
+  - 当前会话：用户确认需求在开发过程中发生变动时应允许关闭和归档
+resume:
+  context_summary: 取消/归档/list、终态保护与技能入口已实现；40/40 测试及工作区/包/技能检查通过。未提交发布，release_readiness 待确认。详见 design/tasks/release/verification；此前分支门禁草案不属本次完成范围。
+  knowledge_status: not_found
+  knowledge_sources: []
+  last_paused_at: null
+  last_activated_at: null
+repositories: []
+release:
+  impact: required
+  status: planning
+  environments:
+    - staging
+    - prt
+    - prod
+  document: release.md
+gates:
+  clarification:
+    status: passed
+    reviewer: chenshaojie
+    evidence: 本会话已提出 cancel(reason)、保留阶段和现场、独立 archive 原地标记的方案；用户回复“可以的……需要增加这个状态，并且支持去关闭”确认执行。
+  design_review:
+    status: passed
+    reviewer: chenshaojie
+    evidence: 本会话已提出 cancel(reason)、保留阶段和现场、独立 archive 原地标记的方案；用户回复“可以的……需要增加这个状态，并且支持去关闭”确认执行。
+  release_readiness:
+    status: pending
+    reviewer: ""
+    evidence: ""
+  verification:
+    status: pending
+    reviewer: ""
+    evidence: ""
+blockers: []
+structured_workflow: true
+revisions: []
+revision_state: null

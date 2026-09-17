@@ -34,6 +34,7 @@ Devix 的需求状态、评审 gate、多仓库现场安全仍由本文件和当
 - `implementation`：只有需求澄清、知识读取和技术方案评审 gate 通过后才能修改业务代码。
 - `verification`：进入前必须完成条件式 release_readiness gate；按验证计划提供单测、联调、回归和结果证据，并在发布过程中持续更新 `release.md`，不能把“未运行”写成“通过”。
 - `closed`：验证 gate 通过，恢复摘要和可复用知识已经收口。
+- 中途放弃使用 `status: cancelled` 并保留原 `phase`，不伪造验证或发布 gate。取消与正常完成是不同结果，`archive` 为附加归档记录，不覆盖结果状态。
 
 AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 gate 标记为 `passed`。用户明确确认后，才同步更新 `change.yaml` 与 `decisions.md`。
 
@@ -46,6 +47,7 @@ AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 g
 - 用户发来一段新需求描述、需求文档、本地文件或文档链接并表达“开始需求/开始开发”时，视为新 change 入口。不得要求用户提供 change-id、英文标题、仓库 ID、分支名或 CLI 参数。
 - AI 从需求语义生成简洁的 change-id 和标题，先用 `devix change status` 检查 active change，再在内部调用 `devix change new`。原始文件路径/链接写入 `change.yaml.sources`，原始描述和结构化澄清写入 README。
 - 新 change 初始不要求用户指定代码仓库。完成初步澄清后，先读取 knowledge 和 `repositories.yaml`，结合需求关键词、仓库 AGENTS 与必要的只读代码勘察判断影响仓库，再由 AI 内部调用 `repo-add`。
+- `intake` 是纯需求记录入口：必须创建空 `repositories` 的 paused clarification change，只保存原始需求、来源和待确认项；不得解析仓库、激活 change、checkout、创建 feature branch 或依据旧 change 继承仓库映射。设计阶段完成真实调用链、改动入口和跨仓职责勘察后，才能登记 `change.yaml.repositories`，再由 `repo-add`/激活流程创建或切换分支。
 - 只有需求目标、范围或验收标准存在会改变方案的关键歧义时才询问用户；能从需求文档、知识库、仓库配置或代码中查明的信息不得反问用户。
 - 用户要求切回历史需求时，使用 `devix change switch <id>`，不能只手工 checkout 代码分支而不更新 active change。
 - CLI 返回 `WORKSPACE_CONFLICT` 时，向用户展示预期/实际分支、HEAD 和修改文件并请求确认；未确认前不得重试带 `--adopt-current-branch` 的命令。
@@ -113,6 +115,11 @@ AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 g
 - 每次交付都说明修改文件、验证命令、验证结果、未验证项与剩余风险。
 
 ## 分支与现场安全
+
+- 用户明确取消需求时可从任意未完成阶段执行 `devix change cancel <id> --reason <原因> --reviewer <确认人>`；CLI 对 active 需求先按暂停规则预检全部仓库、保存现场并清理自身 active 指针，对非 active 需求只保留既有快照，不触碰其他需求代码。
+- 取消记录写入 `cancellation` 和正式文件，未完成任务终止；发布/回滚待办仍保留真实状态与责任人，不把取消视为发布清理完成。
+- 仅用户要求归档时，对 cancelled 或 closed/done 执行 `devix change archive <id> --reason <原因> --reviewer <确认人>`；取消同时归档可使用 `cancel --archive`。归档原地标记，不删除文件或分支。`change list` 默认隐藏归档，`--include-archived` 可查历史。
+- cancelled、done、closed 或已归档的需求禁止通过 switch、pause、revise、repo-add、advance 重新开始；新需求另建 change 引用历史资料。取消不受正常完成 gate 阻塞，但仍遵守 Git 现场冲突规则。
 
 - 分支映射以 `change.yaml.repositories` 为准。
 - 切换需求前先检查实际分支、HEAD 和工作区是否干净。

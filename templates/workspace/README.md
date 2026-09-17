@@ -31,6 +31,8 @@ devix change repo-add <change-id> --repo <repo-id>
 devix change status
 ```
 
+需求中途变化不再继续时，用 `/devix-close` 说明取消原因和是否归档；正常完成仍遵守验证/发布 gate。手工入口：`devix change cancel <change-id> --reason "业务调整" --reviewer "确认人" --archive`。归档保留原文件和分支，状态仍区分 cancelled 与 done。使用 `devix change list --include-archived` 和显式 `devix change status <change-id>` 查询历史；终态不允许重新 switch/revise。
+
 通用规则见 `AGENTS.md`，编码规范见 `standards/`，长期知识见 `knowledge/`。
 
 ## 更新平台规则

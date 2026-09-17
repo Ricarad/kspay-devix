@@ -142,7 +142,7 @@ devix repo add kspay-promo \
 2. 检查并保存当前 active change。
 3. 创建核心 change 文件和 `decisions.md`，登记原始文档路径/链接并整理需求与发布影响。
 4. 在澄清后读取 knowledge 和 `repositories.yaml`。
-5. 判断影响仓库，内部执行 repo-add、切换 feature branch 和 CodeGraph sync。
+5. 需求 intake 只记录原始需求并保持空仓库的 paused change；完成设计阶段只读代码勘察、确认真实影响仓库后，才内部执行 repo-add、切换 feature branch 和 CodeGraph sync。
 6. 只有关键需求歧义或 Git 现场偏差时才请求确认。
 
 以下命令只用于调试或人工接管：
@@ -177,6 +177,8 @@ devix agent install --target myflicker
 ```
 
 安装后 `/` 面板会直接检索到 `/devix-analyze`、`/devix-design`、`/devix-code`、`/devix-test`、`/devix-close` 和 `/devix-status`。这些命令不需要参数；需求原文、附件和 Docs 链接由当前会话自动提供给对应阶段。
+
+需求中途放弃也使用 `/devix-close`，明确说明取消原因及是否归档。内部执行 `devix change cancel <id> --reason <原因> --reviewer <确认人> [--archive]`，保留原阶段与成果；正常交付关闭仍要求验证与发布 gate。历史需求通过 `devix change list --include-archived` 和 `devix change status <id>` 查看。归档不移动文件或删除分支。
 
 ## 6. 工作空间 Git 边界
 

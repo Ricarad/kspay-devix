@@ -7,11 +7,17 @@ const YAML = require("yaml");
 
 const {
   addRepositories,
+  activateChange,
   advanceChange,
+  archiveChange,
   buildContext,
+  cancelChange,
+  changeStatus,
   createAndActivateChange,
   newManifest,
+  listChanges,
   pauseChange,
+  reviseChange,
   switchChange,
   validateChange,
 } = require("../src/change-service");
@@ -727,8 +733,208 @@ test("required release must complete post-release actions before closing", () =>
   change = loadChange(root, "release-close");
   change.release.status = "completed";
   saveChange(root, change);
+  setActive(root, "release-close");
   assert.equal(advanceChange(root, "release-close", "closed").status, "done");
+  assert.equal(loadRuntimeState(root).active_change_id, null);
   assert.equal(validateChange(root, "release-close").valid, true);
+  assert.ok(archiveChange(root, "release-close", { reason: "已完成", reviewer: "owner" }).archive);
+});
+
+const cancellationOptions = { reason: "业务方向调整，需求停止", reviewer: "product-owner" };
+
+for (const phase of ["clarification", "design", "implementation", "verification"]) {
+  test(`cancel preserves ${phase} evidence without requiring completion gates`, () => {
+    const root = makeWorkspace();
+    const original = createChange(root, "cancel-me", [], {
+      phase, status: "blocked", include_decisions: true, structured_workflow: true,
+      revision_state: { status: "pending_confirmation", summary: "changed scope" },
+    });
+    const tasksPath = path.join(root, "changes", "cancel-me", "tasks.md");
+    write(tasksPath, "| ID | 状态 |\n|---|---|\n| T1 | done |\n| T2 | doing |\n| T3 | todo |\n| T4 | blocked |\n");
+    const cancelled = cancelChange(root, "cancel-me", cancellationOptions);
+    assert.equal(cancelled.phase, phase);
+    assert.equal(cancelled.status, "cancelled");
+    assert.deepEqual(cancelled.gates, original.gates);
+    assert.deepEqual(cancelled.release, original.release);
+    assert.deepEqual(cancelled.revision_state, original.revision_state);
+    assert.equal(cancelled.cancellation.reason, cancellationOptions.reason);
+    const taskText = fs.readFileSync(tasksPath, "utf8");
+    assert.match(taskText, /T1 \| done/);
+    assert.match(taskText, /T2 \| cancelled/);
+    assert.match(taskText, /T3 \| cancelled/);
+    assert.match(taskText, /T4 \| cancelled/);
+    const validation = validateChange(root, "cancel-me", { strict: true });
+    assert.deepEqual(validation.errors, []);
+  });
+}
+
+test("active cancellation snapshots dirty work and preserves branch, release and gates", () => {
+  const root = makeWorkspace();
+  const repoPath = initRepository(root, "repo-a");
+  createFeature(repoPath, "feature/cancel-me");
+  createChange(root, "cancel-me", [repositoryManifest(root, "repo-a", "cancel-me")], {
+    status: "active", phase: "implementation",
+  });
+  setActive(root, "cancel-me");
+  const original = loadChange(root, "cancel-me");
+  original.release.impact = "required";
+  original.release.status = "in_progress";
+  saveChange(root, original);
+  write(path.join(repoPath, "unfinished.js"), "// unfinished work\n");
+  const before = head(repoPath);
+  const result = cancelChange(root, "cancel-me", { ...cancellationOptions, archive: true });
+  assert.notEqual(head(repoPath), before);
+  assert.equal(currentBranch(repoPath), "feature/cancel-me");
+  assert.equal(git(repoPath, ["status", "--porcelain"]).stdout, "");
+  assert.equal(result.repositories[0].snapshot.kind, "wip_commit");
+  assert.equal(result.repositories[0].last_known_head, head(repoPath));
+  assert.equal(loadRuntimeState(root).active_change_id, null);
+  assert.equal(result.release.status, "in_progress");
+  assert.deepEqual(result.gates, original.gates);
+  assert.equal(result.archive.reviewer, cancellationOptions.reviewer);
+  const again = cancelChange(root, "cancel-me", { ...cancellationOptions, archive: true });
+  assert.deepEqual(again, result);
+  assert.equal((fs.readFileSync(path.join(root, "changes", "cancel-me", "README.md"), "utf8").match(/## 需求取消记录/g) || []).length, 1);
+});
+
+test("paused cancellation never snapshots another active change sharing its repository", () => {
+  const root = makeWorkspace();
+  const repoPath = initRepository(root, "repo-a");
+  createFeature(repoPath, "feature/old");
+  const savedHead = head(repoPath);
+  createChange(root, "old", [repositoryManifest(root, "repo-a", "old", { last_known_head: savedHead })]);
+  createFeature(repoPath, "feature/current");
+  createChange(root, "current", [repositoryManifest(root, "repo-a", "current")], { status: "active" });
+  setActive(root, "current");
+  write(path.join(repoPath, "current-work.js"), "work in progress\n");
+  const dirtyBefore = git(repoPath, ["status", "--porcelain"]).stdout;
+  cancelChange(root, "old", cancellationOptions);
+  assert.equal(head(repoPath), savedHead);
+  assert.equal(currentBranch(repoPath), "feature/current");
+  assert.equal(git(repoPath, ["status", "--porcelain"]).stdout, dirtyBefore);
+  assert.equal(loadRuntimeState(root).active_change_id, "current");
+});
+
+for (const conflict of ["branch_mismatch", "protected_branch", "detached_head"]) {
+  test(`cancellation preflights all repositories before snapshots on ${conflict}`, () => {
+    const root = makeWorkspace();
+    const first = initRepository(root, "repo-a");
+    const second = initRepository(root, "repo-b");
+    createFeature(first, "feature/cancel-me");
+    if (conflict === "branch_mismatch") createFeature(second, "feature/other");
+    if (conflict === "detached_head") git(second, ["checkout", "--detach"]);
+    createChange(root, "cancel-me", [repositoryManifest(root, "repo-a", "cancel-me"), repositoryManifest(root, "repo-b", "cancel-me")], { status: "active" });
+    setActive(root, "cancel-me");
+    write(path.join(first, "unsaved.txt"), "do not lose\n");
+    const before = head(first);
+    const manifestBefore = fs.readFileSync(path.join(root, "changes", "cancel-me", "change.yaml"), "utf8");
+    assert.throws(() => cancelChange(root, "cancel-me", cancellationOptions), (error) => error.code === "WORKSPACE_CONFLICT");
+    assert.equal(head(first), before);
+    assert.match(git(first, ["status", "--porcelain"]).stdout, /\?\? unsaved/);
+    assert.equal(loadRuntimeState(root).active_change_id, "cancel-me");
+    assert.equal(fs.readFileSync(path.join(root, "changes", "cancel-me", "change.yaml"), "utf8"), manifestBefore);
+  });
+}
+
+test("cancel requires evidence and hook failures do not mark the change cancelled", () => {
+  const root = makeWorkspace();
+  const repoPath = initRepository(root, "repo-a");
+  createFeature(repoPath, "feature/cancel-me");
+  createChange(root, "cancel-me", [repositoryManifest(root, "repo-a", "cancel-me")], { status: "active" });
+  setActive(root, "cancel-me");
+  write(path.join(repoPath, "unsaved.txt"), "preserve me\n");
+  const hook = path.join(repoPath, ".git", "hooks", "pre-commit");
+  write(hook, "#!/bin/sh\nexit 1\n");
+  fs.chmodSync(hook, 0o755);
+  for (const options of [{}, { reason: " " }, { reason: "cancel" }, { reviewer: "owner" }]) {
+    assert.throws(() => cancelChange(root, "cancel-me", options), (error) => error.code === "TERMINATION_EVIDENCE_REQUIRED");
+  }
+  assert.throws(() => cancelChange(root, "cancel-me", cancellationOptions), (error) => error.code === "COMMAND_FAILED");
+  assert.equal(loadChange(root, "cancel-me").status, "active");
+  assert.equal(loadChange(root, "cancel-me").cancellation, null);
+  assert.equal(loadRuntimeState(root).active_change_id, "cancel-me");
+  fs.unlinkSync(hook);
+  assert.equal(cancelChange(root, "cancel-me", cancellationOptions).status, "cancelled");
+});
+
+test("archive is terminal-only, idempotent, and discoverable without live repositories", () => {
+  const root = makeWorkspace();
+  const repoPath = initRepository(root, "repo-a");
+  createChange(root, "old", [repositoryManifest(root, "repo-a", "old")]);
+  assert.throws(() => archiveChange(root, "old", cancellationOptions), (error) => error.code === "CHANGE_NOT_TERMINATED");
+  cancelChange(root, "old", cancellationOptions);
+  assert.equal(listChanges(root).changes.length, 1);
+  const archived = archiveChange(root, "old", cancellationOptions);
+  assert.deepEqual(archiveChange(root, "old", { reason: "retry", reviewer: "other" }), archived);
+  fs.rmSync(repoPath, { recursive: true });
+  assert.equal(listChanges(root).changes.length, 0);
+  assert.equal(listChanges(root, { includeArchived: true }).changes[0].status, "cancelled");
+  const status = changeStatus(root, "old");
+  assert.deepEqual(status.archive, archived.archive);
+  assert.equal(status.repositories[0].state_source, "saved");
+  assert.equal(fs.existsSync(path.join(root, "changes", "old", "design.md")), true);
+});
+
+test("all continuation paths reject terminal changes before affecting the active workspace", () => {
+  const root = makeWorkspace();
+  const repoPath = initRepository(root, "repo-a");
+  createFeature(repoPath, "feature/current");
+  createChange(root, "current", [repositoryManifest(root, "repo-a", "current")], { status: "active" });
+  setActive(root, "current");
+  createChange(root, "cancelled", []);
+  cancelChange(root, "cancelled", cancellationOptions);
+  createChange(root, "done", [], { phase: "closed", status: "done" });
+  createChange(root, "archived", [], { phase: "closed", status: "done" });
+  archiveChange(root, "archived", cancellationOptions);
+  write(path.join(repoPath, "unsaved.txt"), "still developing\n");
+  const before = head(repoPath);
+  for (const id of ["cancelled", "done", "archived"]) {
+    const calls = [
+      () => switchChange(root, id), () => activateChange(root, id), () => pauseChange(root, id),
+      () => reviseChange(root, id, "major", "new scope"), () => addRepositories(root, id, ["repo-a"]),
+      () => advanceChange(root, id, "design"),
+    ];
+    for (const call of calls) assert.throws(call, (error) => error.code === "CHANGE_TERMINATED");
+  }
+  assert.throws(() => cancelChange(root, "done", cancellationOptions), (error) => error.code === "CHANGE_TERMINATED");
+  assert.equal(head(repoPath), before);
+  assert.equal(loadRuntimeState(root).active_change_id, "current");
+  assert.match(git(repoPath, ["status", "--porcelain"]).stdout, /\?\? unsaved/);
+});
+
+test("legacy schema and old cancelled records remain readable and archivable", () => {
+  const root = makeWorkspace();
+  createChange(root, "legacy", [], { schema_version: 1 });
+  const original = loadChange(root, "legacy");
+  delete original.release;
+  delete original.cancellation;
+  delete original.archive;
+  saveChange(root, original);
+  cancelChange(root, "legacy", { ...cancellationOptions, archive: true });
+  assert.equal(validateChange(root, "legacy", { strict: true }).valid, true);
+  createChange(root, "old-cancelled", [], { status: "cancelled" });
+  assert.equal(archiveChange(root, "old-cancelled", cancellationOptions).status, "cancelled");
+  assert.equal(changeStatus(root, "old-cancelled").cancellation, null);
+});
+
+test("CLI cancel/archive/list supports active defaults and explicit paused targets", () => {
+  const root = makeWorkspace();
+  createChange(root, "active", [], { status: "active" });
+  setActive(root, "active");
+  const cli = (...args) => run(process.execPath, [path.join(PROJECT_ROOT, "bin", "devix.js"), "--workspace", root, "change", ...args], { allowFailure: true });
+  const missingReason = cli("cancel", "--reviewer", "owner");
+  assert.equal(JSON.parse(missingReason.stderr).error, "TERMINATION_EVIDENCE_REQUIRED");
+  assert.equal(loadRuntimeState(root).active_change_id, "active");
+  const cancelled = cli("cancel", "--reason", "需求变更", "--reviewer", "owner", "--archive");
+  assert.equal(cancelled.status, 0, cancelled.stderr);
+  assert.equal(JSON.parse(cancelled.stdout).status, "cancelled");
+  assert.equal(JSON.parse(cli("list").stdout).changes.length, 0);
+  assert.equal(JSON.parse(cli("list", "--include-archived").stdout).changes.length, 1);
+  assert.equal(JSON.parse(cli("status", "active").stdout).archive.reason, "需求变更");
+  assert.equal(JSON.parse(cli("cancel", "--reason", "stop", "--reviewer", "owner").stderr).error, "NO_ACTIVE_CHANGE");
+  createChange(root, "paused", []);
+  assert.equal(cli("cancel", "paused", "--reason", "stop", "--reviewer", "owner").status, 0);
+  assert.equal(cli("archive", "paused", "--reason", "历史保留", "--reviewer", "owner").status, 0);
 });
 
 function currentBranch(repoPath) {

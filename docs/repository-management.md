@@ -61,12 +61,17 @@ devix change switch <id>
 devix change pause
 devix change repo-add <id> --repo <repo-id[:base-branch]>
 devix change status [id]
+devix change list [--include-archived]
+devix change cancel [id] --reason <原因> --reviewer <确认人> [--archive]
+devix change archive <id> --reason <原因> --reviewer <确认人>
 devix change validate <id>
 devix change advance <id> --to <phase>
 ```
 
 `new` 在修改 active change 前先验证 change-id、目录冲突和仓库参数。仓库路径默认是 `repos/<repo-id>`，feature branch 默认是 `feature/<change-id>`；仓库有更具体规则时，应先更新 change.yaml 再进入实现。
 
-需求澄清后才确定影响仓库时，使用 `repo-add`。目标 change 是 active 时，CLI 会预检新增仓库、创建/切换 feature branch 并同步 CodeGraph；目标 change paused 时只登记清单，待下次 switch 统一激活。
+需求澄清和设计阶段只读勘察后才确定影响仓库时，使用 `repo-add`。`intake` 不接受仓库参数，也不会创建或切换分支。目标 change 是 active 时，CLI 会预检新增仓库、创建/切换 feature branch 并同步 CodeGraph；目标 change paused 时只登记清单，待下次 switch 统一激活。
 
 发现分支偏差后，只有用户明确确认采用实际普通功能分支时，才可重试并传 `--adopt-current-branch`。该参数不允许接管 main/master 或 detached HEAD。
+
+取消需求保留原阶段并设置 cancelled；对 active 需求复用 pause 的全部仓库预检和本地 WIP 保存，成功后清除自身 active 指针。非 active 取消仅记录历史，不切换或保存其他需求的现场。归档使用附加 archive 记录，原目录和分支保留。cancelled/done/closed/已归档需求不能再通过执行入口激活，历史查询使用 list --include-archived 和显式 status <id>。

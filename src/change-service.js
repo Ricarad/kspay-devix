@@ -38,6 +38,27 @@ function now() {
   return new Date().toISOString();
 }
 
+function isTerminal(change) {
+  return change.phase === "closed" || ["done", "cancelled"].includes(change.status) || Boolean(change.archive);
+}
+
+function assertChangeOpen(change) {
+  if (isTerminal(change)) {
+    throw new DevixError("CHANGE_TERMINATED", `需求已结束或归档，不能继续执行：${change.id}`, {
+      phase: change.phase, status: change.status, archive: change.archive || null,
+    });
+  }
+}
+
+function clearActiveChange(root, changeId) {
+  const runtime = loadRuntimeState(root);
+  if (runtime.active_change_id === changeId) {
+    runtime.active_change_id = null;
+    runtime.updated_at = now();
+    saveRuntimeState(root, runtime);
+  }
+}
+
 function repositoryState(root, repository) {
   const repoPath = resolveRepositoryPath(root, repository);
   assertRepository(repoPath, repository.id);
@@ -105,6 +126,7 @@ function preflightPause(root, change, options = {}) {
 function pauseChange(root, changeId, options = {}) {
   const config = loadConfig(root);
   const change = loadChange(root, changeId, config);
+  assertChangeOpen(change);
   const states = preflightPause(root, change, options);
 
   for (const state of states) {
@@ -131,12 +153,7 @@ function pauseChange(root, changeId, options = {}) {
   change.resume.last_paused_at = now();
   saveChange(root, change, config);
 
-  const runtime = loadRuntimeState(root);
-  if (runtime.active_change_id === changeId) {
-    runtime.active_change_id = null;
-    runtime.updated_at = now();
-    saveRuntimeState(root, runtime);
-  }
+  clearActiveChange(root, changeId);
   return change;
 }
 
@@ -257,6 +274,7 @@ function buildContext(root, change, codegraph = []) {
 function activateChange(root, changeId, options = {}) {
   const config = loadConfig(root);
   const change = loadChange(root, changeId, config);
+  assertChangeOpen(change);
   const states = preflightActivate(root, change);
   const switched = [];
   try {
@@ -293,6 +311,7 @@ function activateChange(root, changeId, options = {}) {
 }
 
 function switchChange(root, targetId, options = {}) {
+  assertChangeOpen(loadChange(root, targetId));
   const runtime = loadRuntimeState(root);
   if (runtime.active_change_id && runtime.active_change_id !== targetId) {
     pauseChange(root, runtime.active_change_id, options);
@@ -380,6 +399,8 @@ function newManifest(changeId, title, repositories) {
     structured_workflow: false,
     revisions: [],
     revision_state: null,
+    cancellation: null,
+    archive: null,
   };
 }
 
@@ -424,12 +445,22 @@ function intakeChange(root, options = {}) {
   if (!title && !description) {
     throw new DevixError("INTAKE_INPUT_REQUIRED", "需求 intake 至少需要 title 或 description");
   }
+  if (Array.isArray(options.repoSpecs) && options.repoSpecs.length > 0) {
+    throw new DevixError(
+      "INTAKE_REPOSITORY_FORBIDDEN",
+      "需求 intake 阶段不能指定仓库；完成只读设计勘察后使用 change repo-add 关联实际影响仓库",
+    );
+  }
   const changeId = options.changeId || slugify(title || description);
-  const context = createAndActivateChange(root, changeId, title || changeId, options.repoSpecs || [], {
-    ...options,
-    includeDecisions: true,
-  });
   const config = loadConfig(root);
+  if (fs.existsSync(changeDirectory(root, changeId, config))) {
+    throw new DevixError("CHANGE_EXISTS", `change 已存在：${changeId}`);
+  }
+  const runtime = loadRuntimeState(root);
+  if (runtime.active_change_id) pauseChange(root, runtime.active_change_id, options);
+  const manifest = newManifest(changeId, title || changeId, []);
+  manifest.include_decisions = true;
+  createChangeFiles(root, changeId, title || changeId, manifest);
   const change = loadChange(root, changeId, config);
   change.structured_workflow = true;
   change.sources = [...new Set([...(change.sources || []), ...(Array.isArray(options.sources) ? options.sources : options.source ? [options.source] : [])])];
@@ -447,7 +478,7 @@ function intakeChange(root, options = {}) {
     if (options.assumption) rows.push(`- ${options.assumption}`);
     appendDocumentSection(decisionsPath, "### Intake 待确认项", rows.join("\n"));
   }
-  return { ...context, change_id: changeId, phase: "clarification", sources: change.sources, context_summary: change.resume.context_summary };
+  return { ...buildContext(root, change), change_id: changeId, phase: "clarification", status: "paused", sources: change.sources, context_summary: change.resume.context_summary };
 }
 
 function ensureDecisionsFile(root, changeId, config) {
@@ -464,6 +495,7 @@ function reviseChange(root, changeId, mode, summary, options = {}) {
   if (!String(summary || "").trim()) throw new DevixError("REVISION_SUMMARY_REQUIRED", "增量变更必须说明内容");
   const config = loadConfig(root);
   const change = loadChange(root, changeId, config);
+  assertChangeOpen(change);
   if (mode !== "major" && change.phase !== "implementation") {
     throw new DevixError("REVISION_PHASE_INVALID", `${mode} 增量只能在 implementation 阶段处理，当前为 ${change.phase}`);
   }
@@ -542,6 +574,7 @@ function addRepositories(root, changeId, repoSpecs, options = {}) {
     throw new DevixError("REPOSITORY_SPEC_REQUIRED", "至少提供一个 --repo");
   }
   const change = loadChange(root, changeId);
+  assertChangeOpen(change);
   const runtime = loadRuntimeState(root);
   if (runtime.active_change_id && runtime.active_change_id !== changeId) {
     throw new WorkspaceConflictError("不能给非 active change 激活代码仓库", {
@@ -613,6 +646,7 @@ function validateStrictArtifacts(root, change, directory, errors, config) {
       if (!decisions.includes(heading)) errors.push(`decisions.md 缺少固定章节：${heading}`);
     }
   }
+  if (change.status === "cancelled") return;
   if (change.phase === "clarification") {
     for (const name of ["design.md", "tasks.md", "verification.md"]) {
       if (!templateMatches(root, change.id, name, config)) errors.push(`clarification 阶段不允许提前修改：${name}`);
@@ -644,6 +678,17 @@ function validateChange(root, changeId, options = {}) {
   if (!PHASES.includes(change.phase)) errors.push(`非法阶段：${change.phase}`);
   if (!STATUSES.includes(change.status)) errors.push(`非法状态：${change.status}`);
   if (change.id !== changeId) errors.push(`目录与 change.id 不一致：${change.id}`);
+  for (const key of ["cancellation", "archive"]) {
+    const record = change[key];
+    if (record == null) continue;
+    if (!record.reason?.trim?.() || !record.reviewer?.trim?.() || !record.at || Number.isNaN(Date.parse(record.at))) {
+      errors.push(`${key} 必须记录 reason、reviewer 和有效 at 时间`);
+    }
+  }
+  if (change.cancellation && change.status !== "cancelled") errors.push("cancellation 仅允许用于 cancelled 需求");
+  if (change.archive && change.status !== "cancelled" && !(change.phase === "closed" && change.status === "done")) {
+    errors.push("仅 cancelled 或 closed/done 需求允许归档");
+  }
   if (change.schema_version === CURRENT_CHANGE_SCHEMA_VERSION) {
     validateReleaseState(change, errors);
   }
@@ -652,7 +697,7 @@ function validateChange(root, changeId, options = {}) {
       if (!repository[key]) errors.push(`仓库 ${repository.id || "<unknown>"} 缺少 ${key}`);
     }
   }
-  if (PHASES.indexOf(change.phase) >= PHASES.indexOf("design")) {
+  if (change.status !== "cancelled" && PHASES.indexOf(change.phase) >= PHASES.indexOf("design")) {
     const knowledgeStatus = change.resume?.knowledge_status;
     if (!["loaded", "not_found"].includes(knowledgeStatus)) {
       errors.push("进入 design 前必须完成知识库读取，并设置 knowledge_status=loaded 或 not_found");
@@ -680,7 +725,7 @@ function validateReleaseState(change, errors) {
     errors.push("release_readiness gate 为 passed/waived 时必须填写 reviewer 和 evidence");
   }
 
-  if (PHASES.indexOf(change.phase) >= PHASES.indexOf("verification")) {
+  if (change.status !== "cancelled" && PHASES.indexOf(change.phase) >= PHASES.indexOf("verification")) {
     if (release.impact === "required") {
       if (!["ready", "in_progress", "completed"].includes(release.status) || gate.status !== "passed") {
         errors.push("有发布影响的 change 进入 verification 后必须通过发布准备门禁并处于 ready/in_progress/completed");
@@ -745,6 +790,7 @@ function assertReleaseCompleted(change) {
 
 function advanceChange(root, changeId, targetPhase) {
   const change = loadChange(root, changeId);
+  assertChangeOpen(change);
   if (change.revision_state?.status === "pending_confirmation") {
     throw new DevixError("REVISION_CONFIRMATION_PENDING", "存在待用户确认的增量变更，不能推进阶段");
   }
@@ -772,7 +818,90 @@ function advanceChange(root, changeId, targetPhase) {
   change.phase = targetPhase;
   if (targetPhase === "closed") change.status = "done";
   saveChange(root, change);
+  if (targetPhase === "closed") clearActiveChange(root, changeId);
   return change;
+}
+
+function terminationRecord(options) {
+  const reason = String(options.reason || "").trim();
+  const reviewer = String(options.reviewer || "").trim();
+  if (!reason || !reviewer) {
+    throw new DevixError("TERMINATION_EVIDENCE_REQUIRED", "取消或归档必须提供 --reason 和 --reviewer");
+  }
+  return { reason, reviewer, at: now() };
+}
+
+function cancelChange(root, changeId, options = {}) {
+  const record = terminationRecord(options);
+  let change = loadChange(root, changeId);
+  if (change.status === "cancelled") {
+    clearActiveChange(root, changeId);
+    return options.archive ? archiveChange(root, changeId, options) : change;
+  }
+  assertChangeOpen(change);
+  const directory = changeDirectory(root, changeId);
+  const tasksPath = path.join(directory, "tasks.md");
+  // Read required artifacts before saving any Git snapshot.
+  fs.readFileSync(path.join(directory, "README.md"), "utf8");
+  const tasks = fs.readFileSync(tasksPath, "utf8");
+  if (loadRuntimeState(root).active_change_id === changeId) {
+    change = pauseChange(root, changeId, options);
+  }
+  change.status = "cancelled";
+  change.cancellation = record;
+  change.next_action = "已取消；保留历史资料，发布或回滚待办仍以 release.md 为准";
+  change.resume = change.resume || {};
+  change.resume.context_summary = `需求在 ${change.phase} 阶段取消。原因和确认人见 cancellation；历史方案、任务和发布事实保留在正式文件中。`;
+  let statusColumn = -1;
+  const updatedTasks = tasks.split("\n").map((line) => {
+    if (!line.trim().startsWith("|")) {
+      statusColumn = -1;
+      return line;
+    }
+    const columns = line.split("|");
+    const header = columns.findIndex((column) => column.trim() === "状态");
+    if (header >= 0) statusColumn = header;
+    if (statusColumn >= 0 && ["todo", "doing", "blocked"].includes(columns[statusColumn]?.trim())) {
+      columns[statusColumn] = " cancelled ";
+      return columns.join("|");
+    }
+    return line;
+  }).join("\n");
+  const note = `- 原阶段：${change.phase}\n- 取消时间：${record.at}\n- 确认人：${record.reviewer}\n- 原因：${record.reason}\n- 未完成任务已终止，不代表验证或发布通过；发布处置仍以 release.md 为准。`;
+  fs.writeFileSync(tasksPath, updatedTasks, "utf8");
+  appendDocumentSection(tasksPath, "## 需求取消记录", note);
+  appendDocumentSection(path.join(directory, "README.md"), "## 需求取消记录", note);
+  saveChange(root, change);
+  clearActiveChange(root, changeId);
+  return options.archive ? archiveChange(root, changeId, options) : change;
+}
+
+function archiveChange(root, changeId, options = {}) {
+  const record = terminationRecord(options);
+  const change = loadChange(root, changeId);
+  if (change.status !== "cancelled" && !(change.phase === "closed" && change.status === "done")) {
+    throw new DevixError("CHANGE_NOT_TERMINATED", "归档前必须取消需求或正常完成关闭");
+  }
+  if (!change.archive) {
+    change.archive = record;
+    saveChange(root, change);
+  }
+  clearActiveChange(root, changeId);
+  return change;
+}
+
+function listChanges(root, options = {}) {
+  const directory = path.join(root, loadConfig(root).workspace.changes_dir);
+  const changes = fs.readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(directory, entry.name, "change.yaml")))
+    .map((entry) => loadChange(root, entry.name))
+    .filter((change) => options.includeArchived || !change.archive)
+    .map((change) => ({
+      change_id: change.id, title: change.title, phase: change.phase, status: change.status,
+      cancellation: change.cancellation || null, archive: change.archive || null,
+    }))
+    .sort((a, b) => a.change_id.localeCompare(b.change_id));
+  return { active_change_id: loadRuntimeState(root).active_change_id, changes };
 }
 
 function changeStatus(root, changeId = null) {
@@ -783,6 +912,13 @@ function changeStatus(root, changeId = null) {
   }
   const change = loadChange(root, id);
   const repositories = (change.repositories || []).map((repository) => {
+    if (isTerminal(change)) {
+      return {
+        id: repository.id, expected_branch: repository.feature_branch,
+        last_known_head: repository.last_known_head, snapshot: repository.snapshot,
+        state_source: "saved",
+      };
+    }
     const state = repositoryState(root, repository);
     return {
       id: repository.id,
@@ -802,6 +938,8 @@ function changeStatus(root, changeId = null) {
     gates: change.gates || {},
     blockers: change.blockers || [],
     revision_state: change.revision_state || null,
+    cancellation: change.cancellation || null,
+    archive: change.archive || null,
     repositories,
   };
 }
@@ -815,10 +953,13 @@ module.exports = {
   activateChange,
   addRepositories,
   advanceChange,
+  archiveChange,
   buildContext,
   changeStatus,
+  cancelChange,
   createAndActivateChange,
   intakeChange,
+  listChanges,
   newManifest,
   pauseChange,
   preflightActivate,

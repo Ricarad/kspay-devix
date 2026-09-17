@@ -130,14 +130,16 @@ changes/<change-id>/
 
 | 命令 | 阶段 | 主要动作 | 允许/要求产生的产物 |
 |---|---|---|---|
-| `/devix-analyze` | clarification | 创建或恢复 active change，整理原始需求、范围、验收和发布影响初判 | 写 `change.yaml`、`README.md`、`decisions.md`、`release.md`；不读真实业务代码，不提前写设计/任务/验证 |
+| `/devix-analyze` | clarification | 创建 paused change，整理原始需求、范围、验收和发布影响初判 | 写 `change.yaml`、`README.md`、`decisions.md`、`release.md`；不关联仓库、不读真实业务代码，不提前写设计/任务/验证 |
 | `/devix-design` | design | 读取知识、仓库规范、AGENTS 和真实代码调用链 | 写 `design.md`、`tasks.md`、受影响的 `release.md`；不修改业务代码 |
 | `/devix-code` | implementation | 按已批准方案修改声明的业务仓库 | 修改业务代码和测试；同步更新 `tasks.md` 的“代码产物清单”和 `release.md`。Local 可直接做，Delta/Major 先重新落档并等待确认 |
 | `/devix-test` | verification | 按代码产物清单生成/补齐单测并执行实际验证 | 登记 generated-test，写 `verification.md` 和实际发布证据；未运行不能写 `passed` |
-| `/devix-close` | closed | 检查验证、发布、监控、清理和未决策项 | 更新 `change.yaml` 为 closed/done，并留下简洁恢复摘要；可复用知识只有在与本 change 无关时才沉淀到 `knowledge/` |
+| `/devix-close` | 正常完成或任意阶段取消 | 根据用户意图区分完成、取消、归档 | 正常完成遵守 gate 后 closed/done；中途放弃保留原 phase 并 cancelled；归档按明确要求附加 archive 记录，保留文件和分支 |
 | `/devix-status` | 只读 | 查看 active change、阶段、gate、阻塞、仓库现场和发布准备 | 不修改任何文件 |
 
 命令不是自由跳转按钮。典型 gate 是：`clarification` 通过后才能进 design；`design_review` 通过后才能进 implementation；进入 verification 前必须有发布准备确认或明确的无发布影响豁免；verification 通过后才能 close。人工 gate 必须由用户、评审人或发布负责人确认，插件不会自行批准。
+
+中途取消是独立终态，不走正常完成 gate。例如“需求方向变了，取消并归档这个需求”，插件应使用 `devix change cancel <id> --reason <用户原因> --reviewer <确认人> --archive`。明确取消后不重复索要授权；只补充缺失原因、身份或 Git 冲突信息。默认保留发布待办，不自动执行外部回滚。历史查询使用 `change list --include-archived`，终态不再允许 switch/revise 继续开发。
 
 ## 5. 每个产物的意义
 
