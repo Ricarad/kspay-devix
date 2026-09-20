@@ -6,7 +6,8 @@
 changes/<change-id>/
 ├── change.yaml       # 当前状态与多仓库分支清单，唯一机器可读事实源
 ├── README.md         # 需求澄清、范围、验收标准、结论与文档索引
-├── design.md         # 技术方案
+├── design.md         # 权威 AI 实施方案
+├── design-review.md  # 新 change 默认生成的人工评审视图（派生）
 ├── tasks.md          # 任务拆解与进度
 └── verification.md   # 单测、联调、发布与结果证据
 ```

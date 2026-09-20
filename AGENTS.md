@@ -13,7 +13,7 @@ Devix 的需求状态、评审 gate、多仓库现场安全仍由本文件和当
 ## 开始任何需求前
 
 1. 若 `.devix/runtime/workspace-state.yaml` 存在，读取它确认当前激活的 change，并核对唯一的 `changes/<change-id>/change.yaml`；不存在表示尚未激活 change。
-2. 读取该需求的 `README.md`、`design.md`、`tasks.md`、`release.md`、`verification.md`，以及存在时的 `decisions.md`。旧 schema v1 没有 `release.md` 时按兼容规则处理。
+2. 读取该需求的 `README.md`、权威 `design.md`、存在时的派生 `design-review.md`、`tasks.md`、`release.md`、`verification.md`，以及存在时的 `decisions.md`。旧 schema v1 没有 `release.md` 时按兼容规则处理。
 3. 读取 `change.yaml.repositories` 涉及的仓库清单，不凭目录名猜测影响仓库。
 4. 对每个涉及的仓库，先读取仓库根目录及目标模块沿途适用的全部 `AGENTS.md`，整理仓库特定的代码、构建和测试要求。
 5. 再读取 `standards/`，只用它补齐仓库规范未覆盖的部分，不反向覆盖仓库规则。
@@ -74,7 +74,8 @@ AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 g
 
 - `change.yaml`：当前阶段、生命周期状态、仓库/分支、gate、阻塞项、下一步。
 - `README.md`：需求目标、范围、场景、验收标准、关键结论和未决问题。
-- `design.md`：基于真实代码路径的技术方案、数据/接口/兼容/回滚设计。
+- `design.md`：基于真实代码路径的权威 AI 实施方案、数据/接口/兼容/回滚设计。
+- `design-review.md`：从正式需求、决策、权威方案和发布事实提炼的人工评审视图，不产生独立决策。
 - `decisions.md`（可选）：复杂需求已经确认的选择、负责人、日期和依据；假设不能伪装成决策。
 - `tasks.md`：可执行任务、依赖、状态和验证方式。
 - `tasks.md`：可执行任务、依赖、状态、验证方式以及 implementation 阶段的类级别代码产物清单。
@@ -85,11 +86,11 @@ AI 不得自行把需要产品、架构师、仓库负责人或用户确认的 g
 
 ## Change 事实落档与跨会话恢复
 
-- 当前 change 的事实必须落在该 change 的正式文件中：需求与验收变化写入 `README.md`，技术链路、接口和实现方案变化写入 `design.md`，已确认的关键取舍写入 `decisions.md`，任务状态、阻塞和下一步写入 `tasks.md`，发布配置与上线 SOP 写入 `release.md`，阶段、状态、仓库分支和恢复摘要写入 `change.yaml`，测试与验收证据写入 `verification.md`。
+- 当前 change 的事实必须落在该 change 的正式文件中：需求与验收变化写入 `README.md`，技术链路、接口和实现方案变化写入权威 `design.md`，人工评审表达同步写入派生 `design-review.md`，已确认的关键取舍写入 `decisions.md`，任务状态、阻塞和下一步写入 `tasks.md`，发布配置与上线 SOP 写入 `release.md`，阶段、状态、仓库分支和恢复摘要写入 `change.yaml`，测试与验收证据写入 `verification.md`。`design-review.md` 不得引入 `design.md`、`README.md` 或 `decisions.md` 中不存在的新决策。
 - `/devix-code` 必须在 `tasks.md` 的代码产物清单中登记每个新增、修改、删除或生成测试的类级别构造；`/devix-test` 读取该清单生成或补齐单测并记录实际执行结果。仅对前端代码，开发或验证阶段临时生成且执行后删除或明确排除提交的测试文件不作为交付产物保留；其执行证据仍写入 `verification.md`。后端继续遵循现有测试生成、登记、保留和提交要求。
 - 未确认的方案只能在 `README.md` 或 `design.md` 中标记为假设或待确认项，不能提前写成 `decisions.md` 中的已确认决策。
 - 用户确认方案或代码事实发生变化后，必须先更新全部受影响的 change 文件并清理相互冲突的旧描述，再继续编码、验证或切换任务；不能只追加新结论而保留已经失效的旧方案。
-- `change.yaml.resume.context_summary` 只保存简洁的恢复摘要和文档入口，不能承载完整方案，也不能替代 `README.md`、`design.md`、`decisions.md` 或 `tasks.md`。
+- `change.yaml.resume.context_summary` 只保存简洁的恢复摘要和文档入口，不能承载完整方案，也不能替代 `README.md`、`design.md`、`design-review.md`、`decisions.md` 或 `tasks.md`。
 - 当前 change 完全禁止写入、更新、查询或依赖任何跨会话 memory；memory 不能作为临时中转、正文备份、事实来源或恢复入口，也不得建议用户“先存 memory 再开新会话”。
 - `knowledge/` 只沉淀已经验证、与单一 change 无关且可跨需求复用的知识，不能代替当前 change 的事实落档。
 - 在预计上下文压缩、准备新会话、暂停或切换 change、工作交接以及结束当前工作前，必须检查 `change.yaml`、当前 schema 的核心文件和存在时的 `decisions.md` 是否一致，确保阶段、下一步、阻塞、任务状态、方案、发布准备与验证证据互相匹配。

@@ -26,6 +26,7 @@ test("intake creates decisions and preserves source/description", () => {
   const directory = path.join(root, "changes", "batch-query");
   assert.equal(result.phase, "clarification");
   assert.equal(fs.existsSync(path.join(directory, "decisions.md")), true);
+  assert.equal(fs.existsSync(path.join(directory, "design-review.md")), true);
   assert.match(fs.readFileSync(path.join(directory, "README.md"), "utf8"), /Support batch query/);
   assert.deepEqual(loadChange(root, "batch-query").sources, ["https://docs.example.test/req"]);
   assert.equal(validateChange(root, "batch-query", { strict: true }).valid, true);
@@ -61,6 +62,7 @@ test("delta revision blocks implementation until explicit confirmation", () => {
   });
   assert.equal(confirmed.status, "active");
   assert.equal(confirmed.gates.design_review.status, "passed");
+  assert.ok(confirmed.revision.affected_documents.includes("design-review.md"));
   assert.equal(loadChange(root, "revision").revisions.length, 1);
 });
 

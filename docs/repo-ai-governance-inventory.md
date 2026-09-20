@@ -76,7 +76,7 @@ Devix 的 `clarification`、`design_review`、`release_readiness` 和 `verificat
 Harness 通常会有 `memory/`、`current-plan.md` 或经验文件。它们对单仓库工作很有帮助，但容易和当前需求状态混在一起。Devix 明确规定：
 
 - 需求事实写 `README.md`。
-- 技术方案写 `design.md`。
+- 权威技术方案写 `design.md`，人工评审表达写派生的 `design-review.md`。
 - 已确认取舍写 `decisions.md`。
 - 任务进度写 `tasks.md`。
 - 发布事实写 `release.md`。
@@ -91,7 +91,7 @@ Harness 通常会有 `memory/`、`current-plan.md` 或经验文件。它们对�
 |---|---|---|---|
 | 主要边界 | 单仓库、单客户端或单语言栈 | 包版本和发布说明 | 多仓库需求生命周期 |
 | 解决问题 | AI 如何写代码 | 代码如何进入版本发布 | 需求如何从澄清走到验证和发布 |
-| 典型产物 | `CLAUDE.md`、`AGENTS.md`、guardrails、prompts、skills、memory、plan | changeset 文件、版本信息、changelog | `change.yaml`、`README.md`、`design.md`、`tasks.md`、`release.md`、`verification.md` |
+| 典型产物 | `CLAUDE.md`、`AGENTS.md`、guardrails、prompts、skills、memory、plan | changeset 文件、版本信息、changelog | `change.yaml`、`README.md`、`design.md`、`design-review.md`、`tasks.md`、`release.md`、`verification.md` |
 | 状态控制 | 多由提示词和 checklist 约束 | 主要是版本发布状态 | 有固定 phase、status 和 gate |
 | 跨仓库能力 | 通常需要人工约定 | 主要围绕包依赖 | 原生登记仓库、模块、分支和影响面 |
 | 设计评审 | 通常是计划或文档约定 | 不负责 | `design_review` gate |

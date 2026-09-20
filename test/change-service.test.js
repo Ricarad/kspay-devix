@@ -136,16 +136,18 @@ function installFailingCodeGraph(root) {
   return binDir;
 }
 
-test("new creates six schema v2 core files and activates the change", () => {
+test("new creates schema v2 core files and the default design review artifact", () => {
   const root = makeWorkspace();
   const context = createAndActivateChange(root, "new-feature", "New Feature");
   const files = fs.readdirSync(path.join(root, "changes", "new-feature")).sort();
-  assert.deepEqual(files, ["README.md", "change.yaml", "design.md", "release.md", "tasks.md", "verification.md"]);
+  assert.deepEqual(files, ["README.md", "change.yaml", "design-review.md", "design.md", "release.md", "tasks.md", "verification.md"]);
   assert.equal(loadRuntimeState(root).active_change_id, "new-feature");
   assert.equal(context.phase, "clarification");
   assert.equal(loadChange(root, "new-feature").schema_version, 2);
+  assert.equal(loadChange(root, "new-feature").artifacts.design_review, true);
   assert.equal(loadChange(root, "new-feature").release.impact, "pending");
   assert.ok(context.core_files.includes(path.join(root, "changes", "new-feature", "release.md")));
+  assert.ok(context.optional_files.includes(path.join(root, "changes", "new-feature", "design-review.md")));
   const changeReadme = fs.readFileSync(path.join(root, "changes", "new-feature", "README.md"), "utf8");
   assert.equal(changeReadme.includes("## 事实落档与恢复规则"), true);
   assert.equal(changeReadme.includes("禁止使用任何跨会话 memory"), true);
@@ -166,11 +168,31 @@ test("schema v1 keeps five core files and surfaces an existing release as option
     fs.readdirSync(path.join(root, "changes", "legacy")).sort(),
     ["README.md", "change.yaml", "design.md", "tasks.md", "verification.md"],
   );
+  assert.equal(fs.existsSync(path.join(root, "changes", "legacy", "design-review.md")), false);
   assert.equal(validateChange(root, "legacy").valid, true);
   write(path.join(root, "changes", "legacy", "release.md"), "# Legacy Release\n");
   const context = buildContext(root, loadChange(root, "legacy"));
   assert.ok(context.optional_files.includes(path.join(root, "changes", "legacy", "release.md")));
   assert.equal(context.core_files.includes(path.join(root, "changes", "legacy", "release.md")), false);
+});
+
+test("old schema v2 changes without the design review artifact remain compatible", () => {
+  const root = makeWorkspace();
+  const manifest = { ...newManifest("old-v2", "Old v2", []) };
+  delete manifest.artifacts;
+  createChangeFiles(root, "old-v2", "Old v2", manifest);
+  assert.equal(fs.existsSync(path.join(root, "changes", "old-v2", "design-review.md")), false);
+  assert.equal(validateChange(root, "old-v2", { strict: true }).valid, true);
+});
+
+test("strict clarification validation protects an enabled design review artifact", () => {
+  const root = makeWorkspace();
+  createChange(root, "review-artifact", []);
+  const reviewPath = path.join(root, "changes", "review-artifact", "design-review.md");
+  write(reviewPath, "# changed before design\n");
+  const validation = validateChange(root, "review-artifact", { strict: true });
+  assert.equal(validation.valid, false);
+  assert.match(validation.errors.join("\n"), /design-review\.md/);
 });
 
 test("init creates a minimal non-Git consumer workspace without tool source directories", () => {
@@ -202,7 +224,7 @@ test("init creates a minimal non-Git consumer workspace without tool source dire
   );
   const context = createAndActivateChange(target, "consumer-change", "Consumer Change");
   assert.equal(context.change_id, "consumer-change");
-  assert.equal(fs.readdirSync(path.join(target, "changes", "consumer-change")).length, 6);
+  assert.equal(fs.readdirSync(path.join(target, "changes", "consumer-change")).length, 7);
   assert.equal(
     fs.readFileSync(path.join(target, "changes", "consumer-change", "README.md"), "utf8")
       .includes("## 事实落档与恢复规则"),

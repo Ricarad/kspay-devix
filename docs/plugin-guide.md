@@ -118,7 +118,8 @@ changes/<change-id>/
 ├── change.yaml       # 机器可读状态、阶段、gate、仓库和恢复点
 ├── README.md         # 需求目标、范围、场景和验收标准
 ├── decisions.md      # 待决策、已确认决策和假设（structured change）
-├── design.md         # 基于真实代码的技术方案和验证设计
+├── design.md         # 基于真实代码的权威 AI 实施方案和验证设计
+├── design-review.md  # 新 change 默认可生成的人工评审视图
 ├── tasks.md          # 可执行任务、进度和代码产物清单
 ├── release.md        # 发布影响、环境差异、SOP、监控和回滚
 └── verification.md   # 实际测试、验收和发布验证证据
@@ -131,7 +132,7 @@ changes/<change-id>/
 | 命令 | 阶段 | 主要动作 | 允许/要求产生的产物 |
 |---|---|---|---|
 | `/devix-analyze` | clarification | 创建 paused change，整理原始需求、范围、验收和发布影响初判 | 写 `change.yaml`、`README.md`、`decisions.md`、`release.md`；不关联仓库、不读真实业务代码，不提前写设计/任务/验证 |
-| `/devix-design` | design | 读取知识、仓库规范、AGENTS 和真实代码调用链 | 写 `design.md`、`tasks.md`、受影响的 `release.md`；不修改业务代码 |
+| `/devix-design` | design | 读取知识、仓库规范、AGENTS 和真实代码调用链 | 写权威 `design.md`、派生 `design-review.md`、`tasks.md`、受影响的 `release.md`；不修改业务代码 |
 | `/devix-code` | implementation | 按已批准方案修改声明的业务仓库 | 修改业务代码和测试；同步更新 `tasks.md` 的“代码产物清单”和 `release.md`。Local 可直接做，Delta/Major 先重新落档并等待确认 |
 | `/devix-test` | verification | 按代码产物清单生成/补齐单测并执行实际验证 | 登记 generated-test，写 `verification.md` 和实际发布证据；未运行不能写 `passed` |
 | `/devix-close` | 正常完成或任意阶段取消 | 根据用户意图区分完成、取消、归档 | 正常完成遵守 gate 后 closed/done；中途放弃保留原 phase 并 cancelled；归档按明确要求附加 archive 记录，保留文件和分支 |
@@ -148,14 +149,15 @@ changes/<change-id>/
 | `change.yaml` | CLI、插件和恢复流程 | 现在是哪一个需求、处于什么阶段、能否继续、涉及哪些仓库/分支、有哪些 gate 和阻塞 |
 | `README.md` | 产品、研发、评审人 | 为什么做、做什么/不做什么、成功标准和如何验收 |
 | `decisions.md` | 产品、架构师、仓库负责人 | 哪些选择还没确认，哪些选择已经由谁在何时确认，哪些只是暂时假设 |
-| `design.md` | 研发和评审人 | 真实调用链是什么、准备如何实现、兼容/回滚和测试怎么设计 |
+| `design.md` | AI、研发和需要深入实现细节的评审人 | 真实调用链是什么、准备如何实现、兼容/回滚和测试怎么设计；它是唯一权威实施方案 |
+| `design-review.md` | 产品、架构师、研发负责人和评审人 | 背景、目标、方案、影响、关键取舍、风险和待确认事项是什么；它是派生评审视图 |
 | `tasks.md` | 实现者和验证者 | 任务如何拆解、进度如何追踪，以及每个代码文件中具体影响了哪些类/接口/枚举 |
 | `release.md` | 发布负责人和 oncall | 是否有发布影响、Staging/PRT/Prod 怎么做、监控什么、何时回滚 |
 | `verification.md` | 评审人和后续维护者 | 哪些命令实际跑过、在哪里跑、结果是什么、还缺什么验证 |
 | `repositories.yaml` | CLI 和 AI | 仓库 ID 到本地路径、远程地址和基线分支如何映射 |
 | `.devix/runtime/workspace-state.yaml` | CLI | 本机当前激活的唯一 change 是谁；它是运行态，不替代 change 正式文档 |
 
-核心原则是“一份事实，一个归属”：需求写 `README.md`，方案写 `design.md`，状态写 `change.yaml`，测试证据写 `verification.md`，不要把关键结论只写在聊天窗口或 resume 摘要里。
+核心原则是“一份事实，一个归属”：需求写 `README.md`，权威方案写 `design.md`，评审表达写派生的 `design-review.md`，状态写 `change.yaml`，测试证据写 `verification.md`，不要把关键结论只写在聊天窗口或 resume 摘要里。评审版不产生独立决策，冲突时先修正权威事实。
 
 ## 6. 同事第一次使用的最短路径
 

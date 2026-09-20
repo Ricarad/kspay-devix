@@ -9,7 +9,7 @@
 | 阶段 | 主要问题与产物 | 退出条件 |
 |---|---|---|
 | clarification | README 中的目标、范围、场景、验收、待确认项和发布影响初判 | clarification gate 通过，并完成知识读取或明确 not_found |
-| design | CodeGraph/代码现状、技术方案、tasks、验证设计和实际涉及的发布 SOP | design_review gate 通过 |
+| design | CodeGraph/代码现状、权威 AI 技术方案、人工评审视图、tasks、验证设计和实际涉及的发布 SOP | design_review gate 通过 |
 | implementation | 按 tasks 修改业务代码，并在代码产物清单登记到类级别 | 实现完成，可进入统一验证 |
 | verification | 根据代码产物清单生成/补齐单测并执行，随后记录联调、回归和发布证据 | verification gate 通过，发布事项完成 |
 | closed | 需求、恢复摘要和可复用知识收口 | 状态改为 done |
@@ -34,7 +34,7 @@ active 取消先预检全部仓库并复用 pause 的 WIP 保存逻辑，冲突�
 
 ## 2. 固定产物
 
-schema v2 的每个 change 固定包含 `change.yaml、README.md、design.md、tasks.md、release.md、verification.md`。复杂决策可另建 `decisions.md`，但当前阶段、分支、发布状态和恢复点始终以 `change.yaml` 为准。schema v1 的旧五文件 change 保持兼容；若已自行增加 `release.md`，恢复时也会加载。
+schema v2 的每个 change 固定包含 `change.yaml、README.md、design.md、tasks.md、release.md、verification.md`。新 change 可通过 `change.yaml.artifacts.design_review: true` 额外生成派生的 `design-review.md`；复杂决策可另建 `decisions.md`，但当前阶段、分支、发布状态和恢复点始终以 `change.yaml` 为准。schema v1 的旧五文件 change 保持兼容；若已自行增加 `release.md` 或 `design-review.md`，恢复时也会加载。
 
 `release.md` 固定存在，但内容按需展开：没有某类组件影响时不写对应标题或空表格。完整规则见 [`standards/release.md`](../standards/release.md)。
 
@@ -84,7 +84,7 @@ Gate 状态为 `pending / passed / failed / waived`：
 
 ## 6. 事实落档与跨会话恢复
 
-当前 change 不使用任何跨会话 memory 保存或恢复需求事实。需求与验收、技术方案、已确认决策、任务进度、发布配置与 SOP、生命周期状态和验证证据必须分别落在 `README.md`、`design.md`、`decisions.md`、`tasks.md`、`release.md`、`change.yaml` 和 `verification.md` 中。
+当前 change 不使用任何跨会话 memory 保存或恢复需求事实。需求与验收、权威技术方案、人工评审视图、已确认决策、任务进度、发布配置与 SOP、生命周期状态和验证证据必须分别落在 `README.md`、`design.md`、`design-review.md`、`decisions.md`、`tasks.md`、`release.md`、`change.yaml` 和 `verification.md` 中。
 
 用户确认方案或代码事实变化后，先同步所有受影响文件并删除失效描述，再继续编码。`resume.context_summary` 只概括当前进度、下一步和正式文档入口，不能复制或替代完整方案。预计上下文压缩、准备新会话、暂停或切换 change、工作交接或结束工作前，应完成一次文件一致性检查；新会话只从 change 文件、已登记知识来源和当前代码事实恢复。
 

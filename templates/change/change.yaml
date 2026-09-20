@@ -33,6 +33,9 @@ repositories:
     last_known_head: ""
     snapshot: null
 
+artifacts:
+  design_review: true
+
 release:
   impact: pending
   status: pending

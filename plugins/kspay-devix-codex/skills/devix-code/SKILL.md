@@ -3,7 +3,7 @@ name: devix-code
 description: Implement the approved active Devix change and handle natural-language incremental changes.
 ---
 
-Run only after the design review gate passes. Read README.md, design.md, tasks.md, decisions.md, release.md, repository AGENTS.md files, and current code facts before editing declared repositories.
+Run only after the design review gate passes. Read README.md, the authoritative `design.md`, tasks.md, decisions.md, release.md, repository AGENTS.md files, and current code facts before editing declared repositories. Treat `design-review.md` as a derived review view; when a Delta or Major change affects reviewable facts, update it together with the authoritative design before continuing.
 
 After every implementation batch, update the `tasks.md` section `代码产物清单`. Record every added, modified, deleted, or generated-test file and the concrete class/interface/enum (or equivalent language construct) affected. Include the repository, exact file path, behavior changed, intended unit-test target, and current unit-test status. A file-only summary is incomplete. Include generated test classes in the same ledger with `generated-test`.
 

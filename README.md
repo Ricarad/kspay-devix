@@ -47,7 +47,7 @@ devix change status <change-id>
 - `change.yaml` 是阶段、仓库分支、阻塞项和下一步动作的机器可读事实源。
 - `release.md` 是远程配置、环境差异、上线前后 SOP、监控和回滚的事实源，只展开实际涉及的组件。
 - Markdown 负责完整分析、方案和评审依据，不重复充当另一套状态机。
-- 当前 change 的事实必须立即落入对应规格文件并清理冲突旧描述，禁止使用跨会话 memory 中转、备份或恢复需求与技术方案。
+- 当前 change 的事实必须立即落入对应规格文件并清理冲突旧描述，权威技术事实写入 `design.md`，人工评审表达同步写入派生的 `design-review.md`；禁止使用跨会话 memory 中转、备份或恢复需求与技术方案。
 - 仓库路径先从 `change.yaml.repositories` 和根 `repositories.yaml` 解析；需要绝对路径时使用 `devix repo list`，不扫描上层工程目录或依赖旧路径猜测。
 - `repos/` 只放代码仓库并整体忽略；消费者工作空间根目录和 `changes/` 都不初始化 Git，只有 Devix 发布源自身通过 Git 管理。
 - 默认在 `repos/<repo-id>` 中按 change 自动保存现场并切换 feature branch；worktree 仅在确有同仓库并行开发需要时显式启用。

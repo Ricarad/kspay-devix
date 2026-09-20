@@ -243,7 +243,7 @@ function buildContext(root, change, codegraph = []) {
   const core_files = coreFiles
     .map((name) => path.join(directory, name))
     .filter((file) => fs.existsSync(file));
-  const optionalFileNames = ["decisions.md"];
+  const optionalFileNames = ["decisions.md", "design-review.md"];
   if (change.schema_version === 1) optionalFileNames.push("release.md");
   const optional_files = optionalFileNames
     .map((name) => path.join(directory, name))
@@ -383,6 +383,9 @@ function newManifest(changeId, title, repositories) {
       last_activated_at: null,
     },
     repositories,
+    artifacts: {
+      design_review: true,
+    },
     release: {
       impact: "pending",
       status: "pending",
@@ -518,7 +521,7 @@ function reviseChange(root, changeId, mode, summary, options = {}) {
     summary: String(summary).trim(),
     created_at: timestamp,
     status: !requiresConfirmation || options.confirm ? "confirmed" : "pending_confirmation",
-    affected_documents: mode === "local" ? ["tasks.md"] : mode === "delta" ? ["README.md", "design.md", "decisions.md", "tasks.md", "release.md"] : ["README.md", "design.md", "decisions.md", "tasks.md", "release.md", "verification.md"],
+    affected_documents: mode === "local" ? ["tasks.md"] : mode === "delta" ? ["README.md", "design.md", "design-review.md", "decisions.md", "tasks.md", "release.md"] : ["README.md", "design.md", "design-review.md", "decisions.md", "tasks.md", "release.md", "verification.md"],
   };
   if (options.confirm && requiresConfirmation) {
     if (!options.reviewer || !options.evidence) {
@@ -644,6 +647,13 @@ function validateStrictArtifacts(root, change, directory, errors, config) {
     const decisions = fs.readFileSync(decisionsPath, "utf8");
     for (const heading of ["## Open Decisions", "## Confirmed Decisions", "## Assumptions"]) {
       if (!decisions.includes(heading)) errors.push(`decisions.md 缺少固定章节：${heading}`);
+    }
+  }
+  if (change.artifacts?.design_review === true) {
+    const reviewPath = path.join(directory, "design-review.md");
+    if (!fs.existsSync(reviewPath)) errors.push("启用 design_review 产物的 change 缺少 design-review.md");
+    if (change.phase === "clarification" && !templateMatches(root, change.id, "design-review.md", config)) {
+      errors.push("clarification 阶段不允许提前修改：design-review.md");
     }
   }
   if (change.status === "cancelled") return;

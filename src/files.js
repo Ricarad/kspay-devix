@@ -144,7 +144,10 @@ function createChangeFiles(root, changeId, title, manifest, config = loadConfig(
     "# 需求名称": `# ${title}`,
   };
   const coreFiles = coreChangeFilesForSchema(manifest.schema_version);
-  for (const fileName of coreFiles.filter((name) => name !== "change.yaml")) {
+  const artifactFiles = manifest.schema_version === CURRENT_CHANGE_SCHEMA_VERSION && manifest.artifacts?.design_review
+    ? ["design-review.md"]
+    : [];
+  for (const fileName of [...coreFiles, ...artifactFiles].filter((name) => name !== "change.yaml")) {
     const source = path.join(templateDir, fileName);
     if (!fs.existsSync(source)) {
       throw new DevixError("TEMPLATE_INVALID", `模板缺少文件：${source}`);
